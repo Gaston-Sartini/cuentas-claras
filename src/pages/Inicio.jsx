@@ -80,8 +80,13 @@ export default function Inicio() {
                 : categoryIcon(t.categories?.icon)
               return (
                 <li key={t.id}>
-                  {/* Tocar un movimiento lleva al Historial, donde se edita o borra */}
-                  <Link to="/historial" className="flex items-center gap-3 py-3">
+                  {/* Tocar un movimiento abre el Historial en el mes del gasto,
+                      con ese movimiento expandido para editarlo o borrarlo */}
+                  <Link
+                    to="/historial"
+                    state={{ abrir: t.id, mes: t.billing_month }}
+                    className="flex items-center gap-3 py-3"
+                  >
                     <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-paper">
                       <Icon size={22} aria-hidden="true" />
                     </span>

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import {
   ArrowRightLeft, CalendarClock, ChevronLeft, ChevronRight, Download, Pencil, Search, Trash2,
 } from 'lucide-react'
@@ -275,11 +276,17 @@ function EditarGasto({ t, onSave, onClose }) {
   )
 }
 
-function Movimiento({ t, onDelete, onUpdate }) {
-  const [abierto, setAbierto] = useState(false)
+function Movimiento({ t, onDelete, onUpdate, abiertoInicial = false }) {
+  const [abierto, setAbierto] = useState(abiertoInicial)
   const [editando, setEditando] = useState(false)
   const [borrando, setBorrando] = useState(false)
+  const ref = useRef(null)
   const esTransfer = t.kind === 'transfer'
+
+  // Si venimos de Inicio con este movimiento elegido, traerlo a la vista
+  useEffect(() => {
+    if (abiertoInicial) ref.current?.scrollIntoView({ block: 'center' })
+  }, [abiertoInicial])
   const Icon = t.esCuota
     ? CalendarClock
     : esTransfer
@@ -292,7 +299,7 @@ function Movimiento({ t, onDelete, onUpdate }) {
   }
 
   return (
-    <li>
+    <li ref={ref}>
       <button
         type="button"
         onClick={() => setAbierto((v) => !v)}
@@ -370,7 +377,10 @@ function Movimiento({ t, onDelete, onUpdate }) {
 
 export default function Historial() {
   const mesActual = monthStartISO()
-  const [mes, setMes] = useState(mesActual)
+  // Si venimos de Inicio con un movimiento elegido, arrancar en su mes contable
+  const { state } = useLocation()
+  const abrirId = state?.abrir ?? null
+  const [mes, setMes] = useState(state?.mes ?? mesActual)
   const [busqueda, setBusqueda] = useState('')
   const [filtro, setFiltro] = useState('todos')
   const { transactions, prevMonthTotal, loading, removeTransaction, updateTransaction } =
@@ -543,6 +553,7 @@ export default function Historial() {
               t={t}
               onDelete={removeTransaction}
               onUpdate={updateTransaction}
+              abiertoInicial={t.id === abrirId}
             />
           ))}
         </ul>
