@@ -58,6 +58,28 @@ export function useCategories() {
     [profile?.org_id, refresh]
   )
 
+  // Sólo categorías propias (RLS): las globales no se pueden tocar.
+  const renameCategory = useCallback(
+    async (id, name) => {
+      const clean = name.trim()
+      if (!clean) return { error: { message: 'Poné un nombre.' } }
+      const { error } = await supabase.from('categories').update({ name: clean }).eq('id', id)
+      if (error) {
+        return {
+          error: {
+            message:
+              error.code === '23505'
+                ? 'Ya existe una categoría con ese nombre.'
+                : 'No se pudo guardar. Probá de nuevo.',
+          },
+        }
+      }
+      refresh()
+      return {}
+    },
+    [refresh]
+  )
+
   // Sólo categorías propias: las globales son de todos. Los gastos que la
   // usaban quedan "Sin categoría" (FK con set null).
   const removeCategory = useCallback(
@@ -69,5 +91,5 @@ export function useCategories() {
     [refresh]
   )
 
-  return { categories, createCategory, removeCategory, refresh }
+  return { categories, createCategory, renameCategory, removeCategory, refresh }
 }

@@ -79,20 +79,23 @@ export default function Inicio() {
                 ? ArrowRightLeft
                 : categoryIcon(t.categories?.icon)
               return (
-                <li key={t.id} className="flex items-center gap-3 py-3">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-paper">
-                    <Icon size={22} aria-hidden="true" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-lg font-bold">{t.description}</p>
-                    <p className="text-base text-ink-soft">
-                      {formatShortDate(t.date)}
-                      {!esTransfer && methodLabel(t) && <> · {methodLabel(t)}</>}
+                <li key={t.id}>
+                  {/* Tocar un movimiento lleva al Historial, donde se edita o borra */}
+                  <Link to="/historial" className="flex items-center gap-3 py-3">
+                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-paper">
+                      <Icon size={22} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-lg font-bold">{t.description}</p>
+                      <p className="text-base text-ink-soft">
+                        {formatShortDate(t.date)}
+                        {!esTransfer && methodLabel(t) && <> · {methodLabel(t)}</>}
+                      </p>
+                    </div>
+                    <p className={`money text-lg font-bold ${esTransfer ? 'text-ink-soft' : ''}`}>
+                      {esTransfer ? '' : '−'}{formatARS(t.amount)}
                     </p>
-                  </div>
-                  <p className={`money text-lg font-bold ${esTransfer ? 'text-ink-soft' : ''}`}>
-                    {esTransfer ? '' : '−'}{formatARS(t.amount)}
-                  </p>
+                  </Link>
                 </li>
               )
             })}

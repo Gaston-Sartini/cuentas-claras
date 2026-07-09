@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Banknote, Plus, Target, Trash2 } from 'lucide-react'
+import { Banknote, Pencil, Plus, Target, Trash2 } from 'lucide-react'
 import { useWallets } from '../hooks/useWallets'
 import { useCategories } from '../hooks/useCategories'
 import { useCategoryBudgets } from '../hooks/useCategoryBudgets'
 import { usePaymentMethods } from '../hooks/usePaymentMethods'
 import NuevaCategoria from '../components/NuevaCategoria'
+import EditarInline from '../components/EditarInline'
 import { categoryIcon, methodIcon, WALLET_ICONS } from '../lib/icons'
 import { formatARS, parseARSInput } from '../lib/format'
 
@@ -119,7 +120,8 @@ function NuevaBilletera({ onCreate }) {
 }
 
 function MediosDePago() {
-  const { methods, removeMethod } = usePaymentMethods()
+  const { methods, removeMethod, renameMethod } = usePaymentMethods()
+  const [editando, setEditando] = useState(null) // id en edición
   const [error, setError] = useState('')
 
   const borrar = async (m) => {
@@ -136,26 +138,43 @@ function MediosDePago() {
         {methods.map((m) => {
           const Icon = methodIcon(m)
           return (
-            <li key={m.id} className="flex items-center gap-3 py-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-paper">
-                <Icon size={22} aria-hidden="true" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-lg font-bold">{m.name}</p>
-                <p className="text-base text-ink-soft">
-                  {m.kind === 'credit'
-                    ? 'Crédito · paga el mes que viene'
-                    : `Débito · descuenta de ${m.wallets?.name ?? 'la billetera'}`}
-                </p>
+            <li key={m.id}>
+              <div className="flex items-center gap-3 py-3">
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-paper">
+                  <Icon size={22} aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-lg font-bold">{m.name}</p>
+                  <p className="text-base text-ink-soft">
+                    {m.kind === 'credit'
+                      ? 'Crédito · paga el mes que viene'
+                      : `Débito · descuenta de ${m.wallets?.name ?? 'la billetera'}`}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditando(editando === m.id ? null : m.id)}
+                  aria-label={`Cambiar el nombre de ${m.name}`}
+                  className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
+                >
+                  <Pencil size={20} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => borrar(m)}
+                  aria-label={`Borrar ${m.name}`}
+                  className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
+                >
+                  <Trash2 size={20} aria-hidden="true" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => borrar(m)}
-                aria-label={`Borrar ${m.name}`}
-                className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
-              >
-                <Trash2 size={20} aria-hidden="true" />
-              </button>
+              {editando === m.id && (
+                <EditarInline
+                  campos={[{ key: 'name', label: 'Nombre', tipo: 'texto', valor: m.name }]}
+                  onSave={({ name }) => renameMethod(m.id, name)}
+                  onClose={() => setEditando(null)}
+                />
+              )}
             </li>
           )
         })}
@@ -173,7 +192,8 @@ function MediosDePago() {
 }
 
 function Categorias() {
-  const { categories, createCategory, removeCategory } = useCategories()
+  const { categories, createCategory, renameCategory, removeCategory } = useCategories()
+  const [editando, setEditando] = useState(null) // id en edición
   const [error, setError] = useState('')
 
   const borrar = async (c) => {
@@ -195,22 +215,41 @@ function Categorias() {
         {categories.map((c) => {
           const Icon = categoryIcon(c.icon)
           return (
-            <li key={c.id} className="flex items-center gap-3 py-3">
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-paper">
-                <Icon size={20} aria-hidden="true" />
-              </span>
-              <p className="min-w-0 flex-1 truncate text-lg font-bold">{c.name}</p>
-              {c.org_id ? (
-                <button
-                  type="button"
-                  onClick={() => borrar(c)}
-                  aria-label={`Borrar categoría ${c.name}`}
-                  className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
-                >
-                  <Trash2 size={20} aria-hidden="true" />
-                </button>
-              ) : (
-                <span className="text-sm font-medium text-ink-soft">de la app</span>
+            <li key={c.id}>
+              <div className="flex items-center gap-3 py-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-paper">
+                  <Icon size={20} aria-hidden="true" />
+                </span>
+                <p className="min-w-0 flex-1 truncate text-lg font-bold">{c.name}</p>
+                {c.org_id ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setEditando(editando === c.id ? null : c.id)}
+                      aria-label={`Cambiar el nombre de ${c.name}`}
+                      className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
+                    >
+                      <Pencil size={20} aria-hidden="true" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => borrar(c)}
+                      aria-label={`Borrar categoría ${c.name}`}
+                      className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
+                    >
+                      <Trash2 size={20} aria-hidden="true" />
+                    </button>
+                  </>
+                ) : (
+                  <span className="text-sm font-medium text-ink-soft">de la app</span>
+                )}
+              </div>
+              {editando === c.id && (
+                <EditarInline
+                  campos={[{ key: 'name', label: 'Nombre', tipo: 'texto', valor: c.name }]}
+                  onSave={({ name }) => renameCategory(c.id, name)}
+                  onClose={() => setEditando(null)}
+                />
               )}
             </li>
           )
@@ -220,8 +259,9 @@ function Categorias() {
   )
 }
 
-function TarjetaBilletera({ wallet, onSetBalance }) {
+function TarjetaBilletera({ wallet, onSetBalance, onRename }) {
   const [editando, setEditando] = useState(false)
+  const [renombrando, setRenombrando] = useState(false)
   const [valorStr, setValorStr] = useState('')
   const [guardando, setGuardando] = useState(false)
   const Icon = WALLET_ICONS[wallet.type] ?? WALLET_ICONS.other
@@ -246,16 +286,36 @@ function TarjetaBilletera({ wallet, onSetBalance }) {
             {formatARS(wallet.current_balance)}
           </p>
         </div>
-        {!editando && (
-          <button
-            type="button"
-            onClick={() => setEditando(true)}
-            className="tap rounded-xl border-2 border-line px-4 py-2 text-base font-bold text-ink-soft"
-          >
-            Ajustar
-          </button>
+        {!editando && !renombrando && (
+          <>
+            <button
+              type="button"
+              onClick={() => setRenombrando(true)}
+              aria-label={`Cambiar el nombre de ${wallet.name}`}
+              className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
+            >
+              <Pencil size={20} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditando(true)}
+              className="tap rounded-xl border-2 border-line px-4 py-2 text-base font-bold text-ink-soft"
+            >
+              Ajustar
+            </button>
+          </>
         )}
       </div>
+
+      {renombrando && (
+        <div className="mt-3">
+          <EditarInline
+            campos={[{ key: 'name', label: 'Nombre de la billetera', tipo: 'texto', valor: wallet.name }]}
+            onSave={({ name }) => onRename(wallet.id, name)}
+            onClose={() => setRenombrando(false)}
+          />
+        </div>
+      )}
 
       {editando && (
         <div className="mt-3 space-y-2">
@@ -416,7 +476,7 @@ function Presupuestos() {
 }
 
 export default function Billeteras() {
-  const { wallets, loading, setBalance, transfer, createWallet } = useWallets()
+  const { wallets, loading, setBalance, transfer, createWallet, renameWallet } = useWallets()
   const [montoStr, setMontoStr] = useState('')
   const [retirando, setRetirando] = useState(false)
   const [msg, setMsg] = useState(null) // { tipo: 'ok' | 'error', texto }
@@ -452,7 +512,7 @@ export default function Billeteras() {
       ) : (
         <div className="space-y-3">
           {wallets.map((w) => (
-            <TarjetaBilletera key={w.id} wallet={w} onSetBalance={setBalance} />
+            <TarjetaBilletera key={w.id} wallet={w} onSetBalance={setBalance} onRename={renameWallet} />
           ))}
           <NuevaBilletera onCreate={createWallet} />
         </div>

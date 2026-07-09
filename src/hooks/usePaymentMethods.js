@@ -90,5 +90,26 @@ export function usePaymentMethods() {
     [refresh]
   )
 
-  return { methods, loading, createMethod, removeMethod, refresh }
+  const renameMethod = useCallback(
+    async (id, name) => {
+      const clean = name.trim()
+      if (!clean) return { error: { message: 'Poné un nombre.' } }
+      const { error } = await supabase.from('payment_methods').update({ name: clean }).eq('id', id)
+      if (error) {
+        return {
+          error: {
+            message:
+              error.code === '23505'
+                ? 'Ya existe un medio de pago con ese nombre.'
+                : 'No se pudo guardar. Probá de nuevo.',
+          },
+        }
+      }
+      refresh()
+      return {}
+    },
+    [refresh]
+  )
+
+  return { methods, loading, createMethod, removeMethod, renameMethod, refresh }
 }

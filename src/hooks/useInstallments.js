@@ -72,6 +72,15 @@ export function useInstallments() {
     [profile?.org_id, refresh]
   )
 
+  const updateInstallment = useCallback(
+    async (id, fields) => {
+      const { error } = await supabase.from('installments').update(fields).eq('id', id)
+      if (!error) refresh()
+      return { error }
+    },
+    [refresh]
+  )
+
   const removeInstallment = useCallback(
     async (id) => {
       const { error } = await supabase.from('installments').delete().eq('id', id)
@@ -81,5 +90,5 @@ export function useInstallments() {
     [refresh]
   )
 
-  return { installments, loading, addInstallment, removeInstallment, refresh }
+  return { installments, loading, addInstallment, updateInstallment, removeInstallment, refresh }
 }

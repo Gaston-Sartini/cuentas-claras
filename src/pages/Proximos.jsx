@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { CalendarClock, CreditCard, Pencil, Plus, Repeat, Trash2 } from 'lucide-react'
+import { CalendarClock, ChevronDown, CreditCard, Pencil, Plus, Repeat, Trash2 } from 'lucide-react'
+import EditarInline from '../components/EditarInline'
 import { useWallets } from '../hooks/useWallets'
 import { useCardCharges } from '../hooks/useCardCharges'
 import { useIncomeProjections } from '../hooks/useIncomeProjections'
@@ -19,6 +20,45 @@ import { formatARS, parseARSInput } from '../lib/format'
 import { addMonthsISO, monthLabel, monthStartISO, nextMonthName } from '../lib/dates'
 
 const MESES_PROYECTADOS = 6
+
+/**
+ * Sección con título tocable para plegar/desplegar. El estado queda guardado
+ * en el teléfono (localStorage), así cada uno arma su pantalla de Próximos.
+ */
+function SeccionPlegable({ id, titulo, icono: Icono, accion, children }) {
+  const [abierta, setAbierta] = useState(
+    () => localStorage.getItem(`cc-seccion-${id}`) !== '0'
+  )
+
+  const alternar = () =>
+    setAbierta((v) => {
+      localStorage.setItem(`cc-seccion-${id}`, v ? '0' : '1')
+      return !v
+    })
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={alternar}
+          aria-expanded={abierta}
+          className="tap flex min-w-0 flex-1 items-center gap-2 text-left"
+        >
+          <ChevronDown
+            size={22}
+            aria-hidden="true"
+            className={`shrink-0 text-ink-soft transition-transform ${abierta ? '' : '-rotate-90'}`}
+          />
+          {Icono && <Icono size={22} aria-hidden="true" className="shrink-0" />}
+          <h2 className="truncate text-lg font-bold">{titulo}</h2>
+        </button>
+        {abierta && accion}
+      </div>
+      {abierta && children}
+    </div>
+  )
+}
 
 /* --- Cierre mensual: ¿pagaste el resumen de la tarjeta? --- */
 function PagoTarjeta() {
@@ -234,10 +274,12 @@ function FormCuotas({ creditMethods, onAdd, onClose }) {
 }
 
 function Cuotas() {
-  const { installments, loading, addInstallment, removeInstallment } = useInstallments()
+  const { installments, loading, addInstallment, updateInstallment, removeInstallment } =
+    useInstallments()
   const { methods } = usePaymentMethods()
   const creditMethods = useMemo(() => methods.filter((m) => m.kind === 'credit'), [methods])
   const [agregando, setAgregando] = useState(false)
+  const [editando, setEditando] = useState(null) // id en edición
   const proximoMes = addMonthsISO(monthStartISO(), 1)
 
   // Activos = todavía queda alguna cuota por pagar desde el mes que viene.
@@ -253,10 +295,11 @@ function Cuotas() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-bold">Cuotas</h2>
-        {!agregando && (
+    <SeccionPlegable
+      id="cuotas"
+      titulo="Cuotas"
+      accion={
+        !agregando && (
           <button
             type="button"
             onClick={() => setAgregando(true)}
@@ -265,9 +308,9 @@ function Cuotas() {
             <Plus size={20} aria-hidden="true" />
             Agregar
           </button>
-        )}
-      </div>
-
+        )
+      }
+    >
       {agregando && (
         <FormCuotas
           creditMethods={creditMethods}
@@ -289,33 +332,53 @@ function Cuotas() {
           {activos.map((inst) => {
             const k = installmentDueInMonth(inst, proximoMes)
             return (
-              <li key={inst.id} className="flex items-center gap-3 py-3">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-lg font-bold">{inst.description}</p>
-                  <p className="text-base text-ink-soft">
-                    {k
-                      ? `Cuota ${k} de ${inst.total_installments} en ${nextMonthName()}`
-                      : `Arranca en ${monthLabel(monthStartISO(new Date(`${inst.start_date}T00:00:00`)))}`}
-                    {methodLabel(inst) && <>{' · '}{methodLabel(inst)}</>}
+              <li key={inst.id}>
+                <div className="flex items-center gap-3 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-lg font-bold">{inst.description}</p>
+                    <p className="text-base text-ink-soft">
+                      {k
+                        ? `Cuota ${k} de ${inst.total_installments} en ${nextMonthName()}`
+                        : `Arranca en ${monthLabel(monthStartISO(new Date(`${inst.start_date}T00:00:00`)))}`}
+                      {methodLabel(inst) && <>{' · '}{methodLabel(inst)}</>}
+                    </p>
+                  </div>
+                  <p className="money shrink-0 text-lg font-bold">
+                    {formatARS(inst.amount_per_installment)}
                   </p>
+                  <button
+                    type="button"
+                    onClick={() => setEditando(editando === inst.id ? null : inst.id)}
+                    aria-label={`Editar ${inst.description}`}
+                    className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
+                  >
+                    <Pencil size={20} aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => borrar(inst)}
+                    aria-label={`Borrar cuotas de ${inst.description}`}
+                    className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
+                  >
+                    <Trash2 size={20} aria-hidden="true" />
+                  </button>
                 </div>
-                <p className="money shrink-0 text-lg font-bold">
-                  {formatARS(inst.amount_per_installment)}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => borrar(inst)}
-                  aria-label={`Borrar cuotas de ${inst.description}`}
-                  className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
-                >
-                  <Trash2 size={20} aria-hidden="true" />
-                </button>
+                {editando === inst.id && (
+                  <EditarInline
+                    campos={[
+                      { key: 'description', label: '¿Qué es?', tipo: 'texto', valor: inst.description },
+                      { key: 'amount_per_installment', label: '$ por cuota', tipo: 'monto', valor: Math.round(Number(inst.amount_per_installment)) },
+                    ]}
+                    onSave={(valores) => updateInstallment(inst.id, valores)}
+                    onClose={() => setEditando(null)}
+                  />
+                )}
               </li>
             )
           })}
         </ul>
       )}
-    </div>
+    </SeccionPlegable>
   )
 }
 
@@ -428,8 +491,10 @@ function FormFijo({ onAdd, onClose }) {
 }
 
 function GastosFijos() {
-  const { recurring, loading, addRecurring, removeRecurring } = useRecurringExpenses()
+  const { recurring, loading, addRecurring, updateRecurring, removeRecurring } =
+    useRecurringExpenses()
   const [agregando, setAgregando] = useState(false)
+  const [editando, setEditando] = useState(null) // id en edición
 
   const borrar = async (r) => {
     if (window.confirm(`¿Sacar "${r.description}" de los gastos fijos?`)) {
@@ -438,13 +503,12 @@ function GastosFijos() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="flex items-center gap-2 text-lg font-bold">
-          <Repeat size={22} aria-hidden="true" />
-          Gastos fijos de todos los meses
-        </h2>
-        {!agregando && (
+    <SeccionPlegable
+      id="fijos"
+      titulo="Gastos fijos de todos los meses"
+      icono={Repeat}
+      accion={
+        !agregando && (
           <button
             type="button"
             onClick={() => setAgregando(true)}
@@ -453,9 +517,9 @@ function GastosFijos() {
             <Plus size={20} aria-hidden="true" />
             Agregar
           </button>
-        )}
-      </div>
-
+        )
+      }
+    >
       {agregando && <FormFijo onAdd={addRecurring} onClose={() => setAgregando(false)} />}
 
       {loading ? (
@@ -470,29 +534,49 @@ function GastosFijos() {
       ) : (
         <ul className="mt-3 divide-y divide-line rounded-2xl border-2 border-line bg-card px-4">
           {recurring.map((r) => (
-            <li key={r.id} className="flex items-center gap-3 py-3">
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-lg font-bold">{r.description}</p>
-                <p className="text-base text-ink-soft">
-                  Todos los meses
-                  {r.categories?.name && <> · {r.categories.name}</>}
-                  {r.payment_methods?.name && <> · {r.payment_methods.name}</>}
-                </p>
+            <li key={r.id}>
+              <div className="flex items-center gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-lg font-bold">{r.description}</p>
+                  <p className="text-base text-ink-soft">
+                    Todos los meses
+                    {r.categories?.name && <> · {r.categories.name}</>}
+                    {r.payment_methods?.name && <> · {r.payment_methods.name}</>}
+                  </p>
+                </div>
+                <p className="money shrink-0 text-lg font-bold">{formatARS(r.amount)}</p>
+                <button
+                  type="button"
+                  onClick={() => setEditando(editando === r.id ? null : r.id)}
+                  aria-label={`Editar ${r.description}`}
+                  className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
+                >
+                  <Pencil size={20} aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => borrar(r)}
+                  aria-label={`Borrar gasto fijo ${r.description}`}
+                  className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
+                >
+                  <Trash2 size={20} aria-hidden="true" />
+                </button>
               </div>
-              <p className="money shrink-0 text-lg font-bold">{formatARS(r.amount)}</p>
-              <button
-                type="button"
-                onClick={() => borrar(r)}
-                aria-label={`Borrar gasto fijo ${r.description}`}
-                className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
-              >
-                <Trash2 size={20} aria-hidden="true" />
-              </button>
+              {editando === r.id && (
+                <EditarInline
+                  campos={[
+                    { key: 'description', label: '¿Qué es?', tipo: 'texto', valor: r.description },
+                    { key: 'amount', label: '$ por mes', tipo: 'monto', valor: Math.round(Number(r.amount)) },
+                  ]}
+                  onSave={(valores) => updateRecurring(r.id, valores)}
+                  onClose={() => setEditando(null)}
+                />
+              )}
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </SeccionPlegable>
   )
 }
 
@@ -589,11 +673,7 @@ function Proyeccion() {
   }, [installments, recurring, byMonthCard, incomes])
 
   return (
-    <div>
-      <div className="flex items-center gap-2">
-        <CalendarClock size={24} aria-hidden="true" />
-        <h2 className="text-lg font-bold">Los próximos meses</h2>
-      </div>
+    <SeccionPlegable id="proyeccion" titulo="Los próximos meses" icono={CalendarClock}>
       <p className="mt-1 text-base text-ink-soft">
         Lo que ya se sabe de cada mes: la plata que entra y los pagos que vencen.
         Tocá el lápiz para cargar el ingreso.
@@ -654,7 +734,7 @@ function Proyeccion() {
           )
         })}
       </ul>
-    </div>
+    </SeccionPlegable>
   )
 }
 

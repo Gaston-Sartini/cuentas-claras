@@ -59,6 +59,17 @@ export function useRecurringExpenses() {
     [profile?.org_id, refresh]
   )
 
+  // Editar nombre/monto: las expensas suben todos los meses, hay que poder
+  // actualizar el fijo sin borrarlo y recrearlo.
+  const updateRecurring = useCallback(
+    async (id, fields) => {
+      const { error } = await supabase.from('recurring_expenses').update(fields).eq('id', id)
+      if (!error) refresh()
+      return { error }
+    },
+    [refresh]
+  )
+
   const removeRecurring = useCallback(
     async (id) => {
       const { error } = await supabase.from('recurring_expenses').delete().eq('id', id)
@@ -68,5 +79,5 @@ export function useRecurringExpenses() {
     [refresh]
   )
 
-  return { recurring, loading, addRecurring, removeRecurring, refresh }
+  return { recurring, loading, addRecurring, updateRecurring, removeRecurring, refresh }
 }
