@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+  --color-paper: #f6f5f1;
+  --color-card: #ffffff;
+  --color-ink: #221f1b;
+  --color-ink-soft: #6b645a;
+  --color-line: #e3ded4;
+  --color-alert: #9e1b1b;
+  --color-alert-deep: #7a1313;
+  --color-leaf: #17693a;
+  --color-amber: #b45309;
+  --color-focus: #1d4ed8;
+}
+
+@layer base {
+  html {
+    /* 18px de base: tipografía grande por defecto, pensada para toda la familia */
+    font-size: 112.5%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* Números de plata: alineados y del mismo ancho, siempre */
+@utility money {
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* Área táctil mínima accesible (WCAG 2.5.5) */
+@utility tap {
+  min-height: 48px;
+  min-width: 48px;
+}

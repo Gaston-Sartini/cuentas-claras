@@ -1,0 +1,10 @@
+# Build y hosting en Netlify. El fallback a index.html es lo que hace andar
+# las rutas del router (/historial, /proximos, ...) al entrar directo o refrescar.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
