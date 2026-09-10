@@ -11,7 +11,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
 [![PWA](https://img.shields.io/badge/PWA-instalable-9E1B1B)](https://cuentas-claras-familia.netlify.app)
-[![Tests](https://img.shields.io/badge/tests_SQL-65_✓-17693A)](supabase/tests)
+[![Tests](https://img.shields.io/badge/tests_SQL-69_✓-17693A)](supabase/tests)
 
 **[✨ Probala en vivo → cuentas-claras-familia.netlify.app](https://cuentas-claras-familia.netlify.app)**
 
@@ -24,7 +24,7 @@ Cuenta demo: `demo-portfolio@cuentasclaras.test` · `demo-portfolio-2026`
 > (whole family shares one realtime workspace), credit-card purchases roll into
 > next month's bill, installment plans and fixed expenses project the months
 > ahead, and every business rule lives in Postgres (triggers + RLS), covered by
-> a 65-assertion SQL test suite that runs against a disposable Docker Postgres.
+> a 69-assertion SQL test suite that runs against a disposable Docker Postgres.
 
 ---
 
@@ -75,9 +75,10 @@ nuevo.
   se puede gastar por día hasta fin de mes.
 - 🤝 **Deudas y préstamos** — "me deben / debo" con vencimiento opcional; se
   marcan saldadas con un toque y quedan en el historial.
-- ⏰ **Vencimientos con aviso** — fijos con día de vencimiento y deudas con
-  fecha aparecen en el Inicio; con "Avisarme", la PWA notifica al abrir la app
-  hasta 2 días antes.
+- ⏰ **Vencimientos con aviso push** — fijos con día de vencimiento y deudas
+  con fecha aparecen en el Inicio; con "Avisarme", el aviso llega por Web Push
+  cada mañana **aunque la app esté cerrada** (2 días antes, el mismo día y si
+  venció ayer). Si el navegador no soporta push, cae al aviso local al abrir.
 - 🔮 **Proyección** — para cada mes futuro: cuánto entra (ingresos con nombre:
   "Sueldo Yami" que se repite todos los meses, "Plata que debía Nico" puntual),
   cuánto sale (por tarjeta y por gasto fijo, ítem por ítem) y cuánto queda.
@@ -114,6 +115,12 @@ el cliente. Cualquier app que inserte una fila obtiene el mismo comportamiento.
 - **Realtime por tabla** — cada hook abre su canal con sufijo único
   (`crypto.randomUUID()`): dos componentes pueden montar el mismo hook sin
   colisionar.
+- **Push real sin servidor propio** — la Edge Function `send-reminders`
+  (Deno + `npm:web-push`) corre cada mañana vía `pg_cron` + `pg_net`, lee las
+  claves VAPID de `app_secrets` (tabla sin acceso desde la API: solo service
+  role) y manda un resumen de vencimientos por familia a cada navegador
+  suscripto (`push_subscriptions`). Las suscripciones muertas (404/410) se
+  podan solas, y un secreto compartido en el header evita disparos ajenos.
 
 ```
 src/
@@ -127,8 +134,9 @@ src/
                 historial/ · proximos/ · ingresos/ · banner, nav, ...
 
 supabase/
-├── migrations/ 11 migraciones incrementales (esquema + RLS + triggers + RPCs)
-└── tests/      suite SQL: 65 aserciones sobre Postgres 16 en Docker
+├── migrations/ 12 migraciones incrementales (esquema + RLS + triggers + RPCs)
+├── functions/  send-reminders: el push diario de vencimientos (Deno + web-push)
+└── tests/      suite SQL: 69 aserciones sobre Postgres 16 en Docker
 ```
 
 ## Tests
@@ -145,9 +153,9 @@ docker run -d --name cc-test -e POSTGRES_PASSWORD=pw \
 
 docker exec cc-test psql -U postgres -v ON_ERROR_STOP=1 \
   -f /sql/tests/00_mock_supabase.sql \
-  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00011_recurring_due_day.sql \
-  -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/08_debts_test.sql
-# => 65 aserciones verdes
+  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00012_push_subscriptions.sql \
+  -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/09_push_test.sql
+# => 69 aserciones verdes
 ```
 
 El mock (`00_mock_supabase.sql`) simula `auth.users`, `auth.uid()` y los roles

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { BellRing, CalendarClock, CreditCard } from 'lucide-react'
+import { useAuth } from '../../context/AuthContext'
 import { useRecurringExpenses } from '../../hooks/useRecurringExpenses'
 import { useDebts } from '../../hooks/useDebts'
 import { useCardCharges } from '../../hooks/useCardCharges'
@@ -12,19 +13,36 @@ import {
   avisosSoportados,
   notificarVencimientos,
 } from '../../lib/notifications'
+import { pushActivo, suscribirPush } from '../../lib/push'
 import { formatARS } from '../../lib/format'
 import { monthLabel } from '../../lib/dates'
 
 /**
  * Qué vence en los próximos días: fijos con día de vencimiento, deudas con
- * fecha y el resumen de tarjeta pendiente. Con "Avisarme", al abrir la app
- * salta una notificación por lo que vence ya (una sola vez por vencimiento).
+ * fecha y el resumen de tarjeta pendiente. Con "Avisarme" el navegador se
+ * suscribe a Web Push (el servidor avisa cada mañana, app cerrada); si el
+ * push no está disponible, al abrir la app salta el aviso local.
  */
 export default function ProximosVencimientos() {
+  const { profile } = useAuth()
   const { recurring } = useRecurringExpenses()
   const { debts } = useDebts()
   const { dueMonths, dueTotal } = useCardCharges()
   const [avisos, setAvisos] = useState(() => avisosActivos())
+  const [conPush, setConPush] = useState(() => pushActivo())
+
+  const activar = async () => {
+    const ok = await activarAvisos()
+    setAvisos(ok)
+    if (ok) setConPush(await suscribirPush(profile))
+  }
+
+  // Permiso dado en otra sesión pero navegador sin suscribir aún: completarla
+  useEffect(() => {
+    if (avisos && !conPush && profile?.org_id) {
+      suscribirPush(profile).then((ok) => ok && setConPush(true))
+    }
+  }, [avisos, conPush, profile])
 
   const items = useMemo(
     () => vencimientosProximos({ fijos: recurring, deudas: debts }),
@@ -54,7 +72,7 @@ export default function ProximosVencimientos() {
           ) : avisosRechazados() ? null : (
             <button
               type="button"
-              onClick={async () => setAvisos(await activarAvisos())}
+              onClick={activar}
               className="tap shrink-0 rounded-full border-2 border-line bg-paper px-4 py-2 text-sm font-bold text-ink-soft"
             >
               🔔 Avisarme
@@ -98,7 +116,9 @@ export default function ProximosVencimientos() {
 
       {avisos && (
         <p className="mt-2 text-sm text-ink-soft">
-          Los avisos saltan al abrir la app, hasta 2 días antes de cada vencimiento.
+          {conPush
+            ? 'Los avisos llegan al teléfono cada mañana, aunque la app esté cerrada.'
+            : 'Los avisos saltan al abrir la app, hasta 2 días antes de cada vencimiento.'}
         </p>
       )}
     </div>

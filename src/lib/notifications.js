@@ -1,12 +1,13 @@
 import { formatARS } from './format'
 import { dayDiff, todayISO } from './dates'
 import { etiquetaVencimiento } from './vencimientos'
+import { pushActivo } from './push'
 
 /**
- * Avisos locales de vencimientos. Se disparan al abrir la app: una PWA sin
- * servidor de push no puede avisar sola con la app cerrada — para eso haría
- * falta infraestructura extra (Edge Function + claves VAPID). Con el uso
- * diario de la app, el aviso al abrir cubre el caso real.
+ * Avisos locales de vencimientos, el plan B del push real: si el navegador
+ * no pudo suscribirse a Web Push (lib/push.js), al abrir la app igual salta
+ * un aviso por lo que vence ya. Con push activo no hace nada: el servidor
+ * (Edge Function send-reminders) ya avisa cada mañana con la app cerrada.
  *
  * El permiso lo pide el usuario con "Avisarme" y cada vencimiento se avisa
  * una sola vez por fecha (marca en localStorage).
@@ -49,6 +50,7 @@ export const activarAvisos = async () => {
 // worker; new Notification() directo no está permitido ahí.
 export const notificarVencimientos = async (items, hoy = todayISO()) => {
   if (!avisosActivos() || items.length === 0) return
+  if (pushActivo()) return // el servidor ya avisa por push: no duplicar
   const reg = await navigator.serviceWorker.getRegistration()
   if (!reg) return
 
