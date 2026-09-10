@@ -11,7 +11,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
 [![PWA](https://img.shields.io/badge/PWA-instalable-9E1B1B)](https://cuentas-claras-familia.netlify.app)
-[![Tests](https://img.shields.io/badge/tests_SQL-55_✓-17693A)](supabase/tests)
+[![Tests](https://img.shields.io/badge/tests_SQL-60_✓-17693A)](supabase/tests)
 
 **[✨ Probala en vivo → cuentas-claras-familia.netlify.app](https://cuentas-claras-familia.netlify.app)**
 
@@ -24,7 +24,7 @@ Cuenta demo: `demo-portfolio@cuentasclaras.test` · `demo-portfolio-2026`
 > (whole family shares one realtime workspace), credit-card purchases roll into
 > next month's bill, installment plans and fixed expenses project the months
 > ahead, and every business rule lives in Postgres (triggers + RLS), covered by
-> a 55-assertion SQL test suite that runs against a disposable Docker Postgres.
+> a 60-assertion SQL test suite that runs against a disposable Docker Postgres.
 
 ---
 
@@ -68,9 +68,9 @@ nuevo.
 - 📊 **Resumen mensual** — barras por categoría con porcentaje, presupuestos con
   semáforo (verde → ámbar → rojo, "queda $X" / "te pasaste $X") y comparativa
   contra el mes anterior. Exportable a CSV.
-- 🔮 **Proyección** — para cada mes futuro: cuánto entra (ingresos estimados,
-  replicables), cuánto sale (por tarjeta y por gasto fijo, ítem por ítem) y
-  cuánto queda.
+- 🔮 **Proyección** — para cada mes futuro: cuánto entra (ingresos con nombre:
+  "Sueldo Yami" que se repite todos los meses, "Plata que debía Nico" puntual),
+  cuánto sale (por tarjeta y por gasto fijo, ítem por ítem) y cuánto queda.
 - 👛 **Billeteras** — saldos de Banco / MercadoPago / Efectivo que se mueven
   solos con cada gasto, ajuste manual, y "¿Sacaste plata del cajero?" que
   transfiere Banco → Efectivo sin contar como gasto.
@@ -110,13 +110,15 @@ src/
 ├── context/    AuthContext (sesión + perfil + org)
 ├── hooks/      un hook por agregado (wallets, methods, budgets, ledger, ...)
 │               → fetch + realtime + mutaciones, la UI no toca supabase-js
-├── lib/        supabase client, formato AR$, fechas, cola offline, CSV
+│               useSupabaseLive: el patrón carga-inicial + refresco realtime, una sola vez
+├── lib/        supabase client, formato AR$, fechas, filtros de pago, cola offline, CSV
 ├── pages/      Inicio · Cargar · Historial · Billeteras · Próximos · Familia
-└── components/ banner, nav, install banner, error boundary, ...
+└── components/ ui/ (piezas de formulario compartidas) · proximos/ · historial/
+                banner, nav, install banner, error boundary, ...
 
 supabase/
-├── migrations/ 8 migraciones incrementales (esquema + RLS + triggers + RPCs)
-└── tests/      suite SQL: 55 aserciones sobre Postgres 16 en Docker
+├── migrations/ 9 migraciones incrementales (esquema + RLS + triggers + RPCs)
+└── tests/      suite SQL: 60 aserciones sobre Postgres 16 en Docker
 ```
 
 ## Tests
@@ -124,7 +126,7 @@ supabase/
 Toda regla de negocio del esquema tiene test: enrutamiento de tarjetas,
 impacto en billeteras (alta/edición/borrado), aislamiento RLS entre familias,
 invitaciones, cierre mensual idempotente, medios de pago custom, gastos fijos
-con vigencia y presupuestos.
+con vigencia, presupuestos e ingresos por ítem (recurrentes y puntuales).
 
 ```bash
 docker run -d --name cc-test -e POSTGRES_PASSWORD=pw \
@@ -132,9 +134,9 @@ docker run -d --name cc-test -e POSTGRES_PASSWORD=pw \
 
 docker exec cc-test psql -U postgres -v ON_ERROR_STOP=1 \
   -f /sql/tests/00_mock_supabase.sql \
-  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00008_category_budgets.sql \
-  -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/06_budgets_test.sql
-# => 55 aserciones verdes
+  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00009_income_entries.sql \
+  -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/07_income_test.sql
+# => 60 aserciones verdes
 ```
 
 El mock (`00_mock_supabase.sql`) simula `auth.users`, `auth.uid()` y los roles

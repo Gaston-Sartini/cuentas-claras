@@ -1,11 +1,12 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
-import { monthStartISO } from '../lib/dates'
+import { monthInRange, monthStartISO } from '../lib/dates'
+import { useSupabaseLive } from './useSupabaseLive'
 
 // ¿El gasto fijo está vigente en un mes dado?
 export const recurringActiveInMonth = (r, monthISO) =>
-  r.start_month <= monthISO && (!r.end_month || r.end_month >= monthISO)
+  monthInRange(r.start_month, r.end_month, monthISO)
 
 /**
  * Gastos fijos mensuales (alquiler, expensas, luz). Son proyección: avisan lo
@@ -25,23 +26,7 @@ export function useRecurringExpenses() {
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    if (!session) return
-    refresh()
-
-    // Nombre único por instancia: dos componentes pueden montar este hook a la
-    // vez y Supabase no permite reusar un canal ya suscripto.
-    const channel = supabase
-      .channel(`recurring-live-${crypto.randomUUID()}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'recurring_expenses' },
-        refresh
-      )
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [session, refresh])
+  useSupabaseLive('recurring_expenses', refresh, !!session)
 
   const addRecurring = useCallback(
     async ({ description, amount, categoryId = null, methodId = null }) => {

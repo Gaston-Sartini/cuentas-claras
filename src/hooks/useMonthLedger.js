@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { addMonthsISO } from '../lib/dates'
+import { useSupabaseLive } from './useSupabaseLive'
 
 /**
  * Libro mayor de un mes contable: todos los movimientos cuyo billing_month
@@ -36,24 +37,11 @@ export function useMonthLedger(monthISO) {
     setLoading(false)
   }, [monthISO])
 
-  useEffect(() => {
-    if (!session) return
-    setLoading(true)
-    refresh()
+  // Al cambiar de mes vuelve el "Cargando…" (los refrescos en vivo no lo muestran)
+  useEffect(() => setLoading(true), [monthISO])
 
-    // Nombre único por instancia: dos componentes pueden montar este hook a la
-    // vez y Supabase no permite reusar un canal ya suscripto.
-    const channel = supabase
-      .channel(`ledger-${monthISO}-${crypto.randomUUID()}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions' },
-        refresh
-      )
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [session, refresh, monthISO])
+  // refresh depende de monthISO: cambiar de mes recarga y resuscribe solo.
+  useSupabaseLive('transactions', refresh, !!session)
 
   // Borrar un gasto devuelve la plata a la billetera (trigger en la DB).
   const removeTransaction = useCallback(

@@ -32,6 +32,11 @@ export const addMonthsISO = (monthISO, n) => {
   return `${Math.floor(total / 12)}-${pad((total % 12) + 1)}-01`
 }
 
+// ¿Un mes cae dentro de la vigencia [start, end]? end null = sigue para siempre.
+// Lo usan gastos fijos e ingresos, que comparten el mismo modelo de vigencia.
+export const monthInRange = (startISO, endISO, monthISO) =>
+  startISO <= monthISO && (!endISO || endISO >= monthISO)
+
 // Meses entre dos primeros-de-mes: monthDiff("2026-07-01", "2026-09-01") = 2
 export const monthDiff = (fromISO, toISO) => {
   const [fy, fm] = fromISO.split('-').map(Number)

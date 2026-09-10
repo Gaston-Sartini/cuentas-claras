@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { addMonthsISO, monthDiff, monthStartISO } from '../lib/dates'
+import { useSupabaseLive } from './useSupabaseLive'
 
 // Número de cuota que vence en un mes dado, o null si el plan no aplica ahí.
 export const installmentDueInMonth = (inst, monthISO) => {
@@ -30,23 +31,7 @@ export function useInstallments() {
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    if (!session) return
-    refresh()
-
-    // Nombre único por instancia: dos componentes pueden montar este hook a la
-    // vez y Supabase no permite reusar un canal ya suscripto.
-    const channel = supabase
-      .channel(`installments-live-${crypto.randomUUID()}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'installments' },
-        refresh
-      )
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [session, refresh])
+  useSupabaseLive('installments', refresh, !!session)
 
   /**
    * Alta pensada como habla la gente: "en {mes que viene} pago la cuota K de N".

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useSupabaseLive } from './useSupabaseLive'
 
 /**
  * Medios de pago de la familia. kind = 'credit' va a la cuenta del mes que
@@ -22,23 +23,7 @@ export function usePaymentMethods() {
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    if (!session) return
-    refresh()
-
-    // Nombre único por instancia: dos componentes pueden montar este hook a la
-    // vez y Supabase no permite reusar un canal ya suscripto.
-    const channel = supabase
-      .channel(`payment-methods-live-${crypto.randomUUID()}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'payment_methods' },
-        refresh
-      )
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [session, refresh])
+  useSupabaseLive('payment_methods', refresh, !!session)
 
   const createMethod = useCallback(
     async ({ name, kind, walletId = null }) => {

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { METHOD_META } from '../lib/icons'
 import { monthStartISO } from '../lib/dates'
+import { useSupabaseLive } from './useSupabaseLive'
 
 /**
  * Compras con tarjeta pendientes de pago, agrupadas por mes contable y por
@@ -36,23 +37,7 @@ export function useCardCharges() {
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    if (!session) return
-    refresh()
-
-    // Nombre único por instancia: dos componentes pueden montar este hook a la
-    // vez y Supabase no permite reusar un canal ya suscripto.
-    const channel = supabase
-      .channel(`card-charges-live-${crypto.randomUUID()}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions' },
-        refresh
-      )
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [session, refresh])
+  useSupabaseLive('transactions', refresh, !!session)
 
   // Meses ya vencidos (este mes o antes) con tarjeta sin pagar.
   const dueMonths = Object.keys(byMonth)

@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
+import { useSupabaseLive } from './useSupabaseLive'
 
 /**
  * Topes de gasto mensual por categoría. El consumo se calcula en el cliente
@@ -22,23 +23,7 @@ export function useCategoryBudgets() {
     setLoading(false)
   }, [])
 
-  useEffect(() => {
-    if (!session) return
-    refresh()
-
-    // Nombre único por instancia: dos componentes pueden montar este hook a la
-    // vez y Supabase no permite reusar un canal ya suscripto.
-    const channel = supabase
-      .channel(`budgets-live-${crypto.randomUUID()}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'category_budgets' },
-        refresh
-      )
-      .subscribe()
-
-    return () => supabase.removeChannel(channel)
-  }, [session, refresh])
+  useSupabaseLive('category_budgets', refresh, !!session)
 
   // Upsert por (org_id, category_id): setear o pisar el tope de una categoría.
   const setBudget = useCallback(

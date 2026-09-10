@@ -3,14 +3,46 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRightLeft, Plus, Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import InstallBanner from '../components/InstallBanner'
-import { useRecentTransactions } from '../hooks/useRecentTransactions'
+import { useTransactionsFeed } from '../hooks/useTransactionsFeed'
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll'
 import { categoryIcon, methodLabel } from '../lib/icons'
 import { formatARS } from '../lib/format'
 import { formatShortDate } from '../lib/dates'
 
+/* Fila de un movimiento: toca y abre el Historial con ese gasto expandido. */
+function MovimientoReciente({ t }) {
+  const esTransfer = t.kind === 'transfer'
+  const Icon = esTransfer ? ArrowRightLeft : categoryIcon(t.categories?.icon)
+
+  return (
+    <li>
+      <Link
+        to="/historial"
+        state={{ abrir: t.id, mes: t.billing_month }}
+        className="flex items-center gap-3 py-3"
+      >
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-paper">
+          <Icon size={22} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-lg font-bold">{t.description}</p>
+          <p className="text-base text-ink-soft">
+            {formatShortDate(t.date)}
+            {!esTransfer && methodLabel(t) && <> · {methodLabel(t)}</>}
+          </p>
+        </div>
+        <p className={`money text-lg font-bold ${esTransfer ? 'text-ink-soft' : ''}`}>
+          {esTransfer ? '' : '−'}{formatARS(t.amount)}
+        </p>
+      </Link>
+    </li>
+  )
+}
+
 export default function Inicio() {
   const { profile, org } = useAuth()
-  const { transactions, loading } = useRecentTransactions(5)
+  const { transactions, loading, loadingMore, hasMore, loadMore } = useTransactionsFeed(10)
+  const finListaRef = useInfiniteScroll(loadMore, hasMore && !loading)
   const location = useLocation()
   const navigate = useNavigate()
   const [guardado, setGuardado] = useState(null) // 'ok' | 'offline' | null
@@ -72,39 +104,25 @@ export default function Inicio() {
             Todavía no hay gastos cargados. Arrancá con el botón de arriba.
           </p>
         ) : (
-          <ul className="divide-y divide-line rounded-2xl border-2 border-line bg-card px-4">
-            {transactions.map((t) => {
-              const esTransfer = t.kind === 'transfer'
-              const Icon = esTransfer
-                ? ArrowRightLeft
-                : categoryIcon(t.categories?.icon)
-              return (
-                <li key={t.id}>
-                  {/* Tocar un movimiento abre el Historial en el mes del gasto,
-                      con ese movimiento expandido para editarlo o borrarlo */}
-                  <Link
-                    to="/historial"
-                    state={{ abrir: t.id, mes: t.billing_month }}
-                    className="flex items-center gap-3 py-3"
-                  >
-                    <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-paper">
-                      <Icon size={22} aria-hidden="true" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-lg font-bold">{t.description}</p>
-                      <p className="text-base text-ink-soft">
-                        {formatShortDate(t.date)}
-                        {!esTransfer && methodLabel(t) && <> · {methodLabel(t)}</>}
-                      </p>
-                    </div>
-                    <p className={`money text-lg font-bold ${esTransfer ? 'text-ink-soft' : ''}`}>
-                      {esTransfer ? '' : '−'}{formatARS(t.amount)}
-                    </p>
-                  </Link>
-                </li>
-              )
-            })}
-          </ul>
+          <>
+            <ul className="divide-y divide-line rounded-2xl border-2 border-line bg-card px-4">
+              {transactions.map((t) => (
+                <MovimientoReciente key={t.id} t={t} />
+              ))}
+            </ul>
+
+            {/* Centinela del scroll infinito: al entrar en pantalla pide más */}
+            <div ref={finListaRef} aria-hidden="true" />
+
+            {loadingMore && (
+              <p className="mt-2 text-center text-base text-ink-soft">Cargando más…</p>
+            )}
+            {!hasMore && (
+              <p className="mt-2 text-center text-base text-ink-soft">
+                Eso es todo: no hay movimientos más viejos.
+              </p>
+            )}
+          </>
         )}
       </div>
     </section>

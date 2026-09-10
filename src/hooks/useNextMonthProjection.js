@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useSupabaseLive } from './useSupabaseLive'
 
 /**
  * Proyección del mes que viene para el banner rojo:
@@ -19,36 +20,13 @@ export function useNextMonthProjection() {
     setLoading(false)
   }, [])
 
+  // El banner suma tres patas: cualquier cambio en una de ellas lo refresca.
+  useSupabaseLive(['transactions', 'installments', 'recurring_expenses'], refresh)
+
+  // Al loguearse/desloguearse el RPC devuelve otra cosa: refrescar también.
   useEffect(() => {
-    refresh()
-
     const { data: authSub } = supabase.auth.onAuthStateChange(() => refresh())
-
-    // Nombre único por instancia: dos componentes pueden montar este hook a la
-    // vez y Supabase no permite reusar un canal ya suscripto.
-    const channel = supabase
-      .channel(`next-month-projection-${crypto.randomUUID()}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'transactions' },
-        refresh
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'installments' },
-        refresh
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'recurring_expenses' },
-        refresh
-      )
-      .subscribe()
-
-    return () => {
-      authSub.subscription.unsubscribe()
-      supabase.removeChannel(channel)
-    }
+    return () => authSub.subscription.unsubscribe()
   }, [refresh])
 
   return { projection, loading, refresh }
