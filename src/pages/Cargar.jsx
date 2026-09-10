@@ -7,6 +7,7 @@ import { useCategories } from '../hooks/useCategories'
 import { useWallets } from '../hooks/useWallets'
 import { usePaymentMethods } from '../hooks/usePaymentMethods'
 import NuevaCategoria from '../components/NuevaCategoria'
+import AvisoTope from '../components/cargar/AvisoTope'
 import { enqueue } from '../lib/offlineQueue'
 import { categoryIcon, methodIcon, WALLET_ICONS } from '../lib/icons'
 import { formatARS, parseARSInput } from '../lib/format'
@@ -293,6 +294,13 @@ export default function Cargar() {
             }}
           />
         )}
+
+        {/* Freno de presupuesto: avisa antes de guardar si el tope se pasa */}
+        <AvisoTope
+          categoriaId={categoriaId}
+          categoriaNombre={categories.find((c) => c.id === categoriaId)?.name}
+          monto={monto}
+        />
       </div>
 
       {/* Medio de pago */}

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react'
 import ResumenPorCategoria from '../components/historial/ResumenPorCategoria'
+import GastosHormiga from '../components/historial/GastosHormiga'
 import Movimiento from '../components/historial/Movimiento'
 import { useMonthLedger } from '../hooks/useMonthLedger'
 import { installmentDueInMonth, useInstallments } from '../hooks/useInstallments'
@@ -65,6 +66,12 @@ export default function Historial() {
   const gastos = useMemo(
     () => visibles.filter((t) => t.esCuota || t.kind === 'expense'),
     [visibles]
+  )
+
+  // Todos los gastos del mes (sin filtro ni búsqueda), para el reporte hormiga
+  const gastosDelMes = useMemo(
+    () => [...cuotasDelMes, ...transactions.filter((t) => t.kind === 'expense')],
+    [cuotasDelMes, transactions]
   )
 
   // Baja el mes completo (todos los movimientos, sin importar filtro/búsqueda)
@@ -147,6 +154,8 @@ export default function Historial() {
         budgets={budgets}
         mostrarTopes={mes === mesActual}
       />
+
+      <GastosHormiga gastos={gastosDelMes} />
 
       {/* Búsqueda y filtros */}
       <div className="space-y-2">

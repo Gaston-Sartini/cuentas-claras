@@ -11,7 +11,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
 [![PWA](https://img.shields.io/badge/PWA-instalable-9E1B1B)](https://cuentas-claras-familia.netlify.app)
-[![Tests](https://img.shields.io/badge/tests_SQL-60_✓-17693A)](supabase/tests)
+[![Tests](https://img.shields.io/badge/tests_SQL-65_✓-17693A)](supabase/tests)
 
 **[✨ Probala en vivo → cuentas-claras-familia.netlify.app](https://cuentas-claras-familia.netlify.app)**
 
@@ -24,7 +24,7 @@ Cuenta demo: `demo-portfolio@cuentasclaras.test` · `demo-portfolio-2026`
 > (whole family shares one realtime workspace), credit-card purchases roll into
 > next month's bill, installment plans and fixed expenses project the months
 > ahead, and every business rule lives in Postgres (triggers + RLS), covered by
-> a 60-assertion SQL test suite that runs against a disposable Docker Postgres.
+> a 65-assertion SQL test suite that runs against a disposable Docker Postgres.
 
 ---
 
@@ -65,9 +65,19 @@ nuevo.
   ya empezados ("voy por la 3 de 12").
 - 📅 **Gastos fijos** — alquiler, expensas, luz: se cargan una vez y alimentan
   la proyección de todos los meses.
-- 📊 **Resumen mensual** — barras por categoría con porcentaje, presupuestos con
-  semáforo (verde → ámbar → rojo, "queda $X" / "te pasaste $X") y comparativa
-  contra el mes anterior. Exportable a CSV.
+- 📊 **Resumen mensual** — barras por categoría con porcentaje (tocás una y ves
+  los movimientos que la suman), presupuestos con semáforo (verde → ámbar →
+  rojo), radar de **gastos hormiga** y comparativa contra el mes anterior.
+  Exportable a CSV.
+- 🚦 **Freno de presupuesto** — al cargar un gasto, si la categoría tiene tope
+  te avisa *antes de guardar* cuánto va consumido y si con este gasto te pasás.
+- 💵 **Disponible por día** — el Inicio muestra cuánto queda del mes y cuánto
+  se puede gastar por día hasta fin de mes.
+- 🤝 **Deudas y préstamos** — "me deben / debo" con vencimiento opcional; se
+  marcan saldadas con un toque y quedan en el historial.
+- ⏰ **Vencimientos con aviso** — fijos con día de vencimiento y deudas con
+  fecha aparecen en el Inicio; con "Avisarme", la PWA notifica al abrir la app
+  hasta 2 días antes.
 - 🔮 **Proyección** — para cada mes futuro: cuánto entra (ingresos con nombre:
   "Sueldo Yami" que se repite todos los meses, "Plata que debía Nico" puntual),
   cuánto sale (por tarjeta y por gasto fijo, ítem por ítem) y cuánto queda.
@@ -113,12 +123,12 @@ src/
 │               useSupabaseLive: el patrón carga-inicial + refresco realtime, una sola vez
 ├── lib/        supabase client, formato AR$, fechas, filtros de pago, cola offline, CSV
 ├── pages/      Inicio · Cargar · Historial · Billeteras · Próximos · Familia
-└── components/ ui/ (piezas de formulario compartidas) · proximos/ · historial/
-                banner, nav, install banner, error boundary, ...
+└── components/ ui/ (piezas de formulario compartidas) · inicio/ · cargar/ ·
+                historial/ · proximos/ · ingresos/ · banner, nav, ...
 
 supabase/
-├── migrations/ 9 migraciones incrementales (esquema + RLS + triggers + RPCs)
-└── tests/      suite SQL: 60 aserciones sobre Postgres 16 en Docker
+├── migrations/ 11 migraciones incrementales (esquema + RLS + triggers + RPCs)
+└── tests/      suite SQL: 65 aserciones sobre Postgres 16 en Docker
 ```
 
 ## Tests
@@ -126,7 +136,8 @@ supabase/
 Toda regla de negocio del esquema tiene test: enrutamiento de tarjetas,
 impacto en billeteras (alta/edición/borrado), aislamiento RLS entre familias,
 invitaciones, cierre mensual idempotente, medios de pago custom, gastos fijos
-con vigencia, presupuestos e ingresos por ítem (recurrentes y puntuales).
+con vigencia y vencimiento, presupuestos, ingresos por ítem (recurrentes y
+puntuales) y deudas.
 
 ```bash
 docker run -d --name cc-test -e POSTGRES_PASSWORD=pw \
@@ -134,9 +145,9 @@ docker run -d --name cc-test -e POSTGRES_PASSWORD=pw \
 
 docker exec cc-test psql -U postgres -v ON_ERROR_STOP=1 \
   -f /sql/tests/00_mock_supabase.sql \
-  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00009_income_entries.sql \
-  -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/07_income_test.sql
-# => 60 aserciones verdes
+  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00011_recurring_due_day.sql \
+  -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/08_debts_test.sql
+# => 65 aserciones verdes
 ```
 
 El mock (`00_mock_supabase.sql`) simula `auth.users`, `auth.uid()` y los roles

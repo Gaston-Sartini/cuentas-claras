@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { parseARSInput } from '../lib/format'
 
 /**
- * Mini-form de edición inline reutilizable: uno o dos campos (texto / monto),
+ * Mini-form de edición inline reutilizable: campos de texto, monto o entero,
  * Guardar y Cancelar. Lo usan billeteras, medios de pago, categorías, gastos
- * fijos y cuotas para renombrar sin salir de la lista.
+ * fijos, cuotas, ingresos y deudas para editar sin salir de la lista.
  *
- * campos: [{ key, label, tipo: 'texto' | 'monto', valor }]
- * onSave(valores) => { error? }  — valores ya parseados (monto como número)
+ * campos: [{ key, label, tipo: 'texto' | 'monto' | 'entero', valor,
+ *            opcional?, min?, max? }]  (opcional/min/max solo para 'entero')
+ * onSave(valores) => { error? }  — valores ya parseados (números como número,
+ * entero opcional vacío como null)
  */
 export default function EditarInline({ campos, onSave, onClose }) {
   const [valores, setValores] = useState(() =>
@@ -22,6 +24,19 @@ export default function EditarInline({ campos, onSave, onClose }) {
       if (c.tipo === 'monto') {
         const n = parseARSInput(valores[c.key])
         if (!(n > 0)) return setError(`Poné un monto válido en "${c.label}".`)
+        parseados[c.key] = n
+      } else if (c.tipo === 'entero') {
+        const s = valores[c.key].trim()
+        if (!s) {
+          if (!c.opcional) return setError(`Poné un valor en "${c.label}".`)
+          parseados[c.key] = null
+          continue
+        }
+        const n = Number(s)
+        const min = c.min ?? 1
+        const max = c.max ?? Number.MAX_SAFE_INTEGER
+        if (!Number.isInteger(n) || n < min || n > max)
+          return setError(`"${c.label}" va de ${min} a ${max}.`)
         parseados[c.key] = n
       } else {
         const s = valores[c.key].trim()
@@ -56,6 +71,16 @@ export default function EditarInline({ campos, onSave, onClose }) {
                 autoFocus={campos[0].key === c.key}
               />
             </div>
+          ) : c.tipo === 'entero' ? (
+            <input
+              className="money tap w-full rounded-xl border-2 border-line bg-card px-3 py-2 text-lg"
+              inputMode="numeric"
+              value={valores[c.key]}
+              onChange={(e) =>
+                setValores((v) => ({ ...v, [c.key]: e.target.value.replace(/\D/g, '') }))
+              }
+              autoFocus={campos[0].key === c.key}
+            />
           ) : (
             <input
               className="tap w-full rounded-xl border-2 border-line bg-card px-3 py-2 text-lg"

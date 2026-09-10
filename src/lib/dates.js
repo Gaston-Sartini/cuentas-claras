@@ -11,10 +11,30 @@ export const formatShortDate = (isoDate) =>
     new Date(`${isoDate}T00:00:00`)
   )
 
-export const todayISO = () => {
-  const d = new Date()
+const toISODate = (d) => {
   const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+export const todayISO = () => toISODate(new Date())
+
+// "2026-09-10" + 5 -> "2026-09-15" (parseo local, sin corrimiento de zona)
+export const addDaysISO = (isoDate, n) => {
+  const d = new Date(`${isoDate}T00:00:00`)
+  d.setDate(d.getDate() + n)
+  return toISODate(d)
+}
+
+// Días entre dos fechas: dayDiff("2026-09-10", "2026-09-12") = 2
+export const dayDiff = (fromISO, toISO) =>
+  Math.round(
+    (new Date(`${toISO}T00:00:00`) - new Date(`${fromISO}T00:00:00`)) / 86400000
+  )
+
+// Cantidad de días del mes de un primero-de-mes: daysInMonth("2026-02-01") = 28
+export const daysInMonth = (monthISO) => {
+  const [y, m] = monthISO.split('-').map(Number)
+  return new Date(y, m, 0).getDate()
 }
 
 // Primer día del mes en ISO ("2026-07-01"): la clave con la que billing_month,

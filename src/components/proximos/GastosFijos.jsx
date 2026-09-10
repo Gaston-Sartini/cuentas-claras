@@ -3,12 +3,13 @@ import { Pencil, Plus, Repeat, Trash2 } from 'lucide-react'
 import SeccionPlegable from '../SeccionPlegable'
 import EditarInline from '../EditarInline'
 import {
-  BotonesForm, BotonIcono, CampoMonto, CampoTexto, INPUT_CLS, MensajeError,
+  BotonesForm, BotonIcono, CampoEntero, CampoMonto, CampoTexto, INPUT_CLS, MensajeError,
 } from '../ui/FormPiezas'
 import { useCategories } from '../../hooks/useCategories'
 import { usePaymentMethods } from '../../hooks/usePaymentMethods'
-import { useRecurringExpenses } from '../../hooks/useRecurringExpenses'
+import { recurringActiveInMonth, useRecurringExpenses } from '../../hooks/useRecurringExpenses'
 import { formatARS, parseARSInput } from '../../lib/format'
+import { monthStartISO } from '../../lib/dates'
 
 function FormFijo({ onAdd, onClose }) {
   const { categories } = useCategories()
@@ -17,13 +18,17 @@ function FormFijo({ onAdd, onClose }) {
   const [montoStr, setMontoStr] = useState('')
   const [categoriaId, setCategoriaId] = useState('')
   const [metodoId, setMetodoId] = useState('')
+  const [diaStr, setDiaStr] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
   const guardar = async () => {
     const monto = parseARSInput(montoStr)
+    const dia = diaStr ? Number(diaStr) : null
     if (!descripcion.trim()) return setError('Poné qué es (ej: Expensas).')
     if (!(monto > 0)) return setError('Poné cuánto viene por mes.')
+    if (dia != null && !(dia >= 1 && dia <= 31))
+      return setError('El día de vencimiento va de 1 a 31 (o dejalo vacío).')
 
     setGuardando(true)
     setError('')
@@ -32,6 +37,7 @@ function FormFijo({ onAdd, onClose }) {
       amount: monto,
       categoryId: categoriaId || null,
       methodId: metodoId || null,
+      dueDay: dia,
     })
     setGuardando(false)
     if (error) return setError('No se pudo guardar. Probá de nuevo.')
@@ -76,6 +82,14 @@ function FormFijo({ onAdd, onClose }) {
         </label>
       </div>
 
+      <CampoEntero
+        label="¿Qué día vence? (opcional)"
+        value={diaStr}
+        onChange={setDiaStr}
+        placeholder="Ej: 5"
+        ayuda="Con el día cargado, el Inicio te avisa antes de que venza."
+      />
+
       <MensajeError>{error}</MensajeError>
 
       <BotonesForm
@@ -84,6 +98,37 @@ function FormFijo({ onAdd, onClose }) {
         onGuardar={guardar}
         onCancelar={onClose}
       />
+    </div>
+  )
+}
+
+/**
+ * Radar de suscripciones: el costo anualizado de los fijos vigentes. Ver
+ * "$49.000/mes" como "$588.000 al año" es lo que empuja a dar de baja lo
+ * que ya no se usa.
+ */
+function RadarSuscripciones({ recurring }) {
+  const mesActual = monthStartISO()
+  const vigentes = recurring.filter((r) => recurringActiveInMonth(r, mesActual))
+  const total = vigentes.reduce((sum, r) => sum + Number(r.amount), 0)
+  if (total === 0) return null
+
+  const servicios = vigentes
+    .filter((r) => r.categories?.name === 'Servicios')
+    .reduce((sum, r) => sum + Number(r.amount), 0)
+
+  return (
+    <div className="mt-3 rounded-2xl border-2 border-line bg-paper p-4 text-base">
+      <p className="money font-bold">
+        Todos los fijos juntos: {formatARS(total)}/mes → {formatARS(total * 12)} al año
+      </p>
+      {servicios > 0 && (
+        <p className="money mt-1 text-ink-soft">
+          Solo servicios y suscripciones: {formatARS(servicios)}/mes →{' '}
+          <strong className="text-ink">{formatARS(servicios * 12)} al año</strong>.
+          ¿Hay alguno que ya no usen?
+        </p>
+      )}
     </div>
   )
 }
@@ -130,6 +175,7 @@ export default function GastosFijos() {
           </p>
         )
       ) : (
+        <>
         <ul className="mt-3 divide-y divide-line rounded-2xl border-2 border-line bg-card px-4">
           {recurring.map((r) => (
             <li key={r.id}>
@@ -138,6 +184,7 @@ export default function GastosFijos() {
                   <p className="truncate text-lg font-bold">{r.description}</p>
                   <p className="text-base text-ink-soft">
                     Todos los meses
+                    {r.due_day && <> · vence el {r.due_day}</>}
                     {r.categories?.name && <> · {r.categories.name}</>}
                     {r.payment_methods?.name && <> · {r.payment_methods.name}</>}
                   </p>
@@ -161,6 +208,7 @@ export default function GastosFijos() {
                   campos={[
                     { key: 'description', label: '¿Qué es?', tipo: 'texto', valor: r.description },
                     { key: 'amount', label: '$ por mes', tipo: 'monto', valor: Math.round(Number(r.amount)) },
+                    { key: 'due_day', label: 'Día de vencimiento (1 a 31, vacío = sin aviso)', tipo: 'entero', opcional: true, min: 1, max: 31, valor: r.due_day },
                   ]}
                   onSave={(valores) => updateRecurring(r.id, valores)}
                   onClose={() => setEditando(null)}
@@ -169,6 +217,8 @@ export default function GastosFijos() {
             </li>
           ))}
         </ul>
+        <RadarSuscripciones recurring={recurring} />
+        </>
       )}
     </SeccionPlegable>
   )

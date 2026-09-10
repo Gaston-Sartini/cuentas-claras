@@ -3,6 +3,8 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowRightLeft, Plus, Users } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import InstallBanner from '../components/InstallBanner'
+import DisponibleDiario from '../components/inicio/DisponibleDiario'
+import ProximosVencimientos from '../components/inicio/ProximosVencimientos'
 import { useTransactionsFeed } from '../hooks/useTransactionsFeed'
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll'
 import { categoryIcon, methodLabel } from '../lib/icons'
@@ -91,6 +93,9 @@ export default function Inicio() {
         <Plus size={26} aria-hidden="true" />
         Cargar un gasto
       </Link>
+
+      <DisponibleDiario />
+      <ProximosVencimientos />
 
       <InstallBanner />
 
