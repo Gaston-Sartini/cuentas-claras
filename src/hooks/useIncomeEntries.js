@@ -20,9 +20,12 @@ export const incomesTotal = (entries) =>
   entries.reduce((sum, e) => sum + Number(e.amount), 0)
 
 /**
- * Ingresos proyectados por ítem ("Sueldo Yami", "Plata que debía Nico").
- * end_month null = se repite todos los meses; end_month = start_month =
- * ingreso puntual de ese único mes.
+ * Ingresos proyectados por ítem ("Sueldo Yami", "Plata que debía Nico"), con
+ * la billetera donde van a caer. end_month null = se repite todos los meses;
+ * end_month = start_month = ingreso puntual de ese único mes.
+ *
+ * Ojo: acá vive la proyección. Que la plata haya entrado de verdad lo maneja
+ * useIncomeReceipts, que es lo que mueve los saldos.
  */
 export function useIncomeEntries() {
   const { session, profile } = useAuth()
@@ -32,7 +35,7 @@ export function useIncomeEntries() {
   const refresh = useCallback(async () => {
     const { data } = await supabase
       .from('income_entries')
-      .select('*')
+      .select('*, wallets(name, type)')
       .order('amount', { ascending: false })
     setEntries(data ?? [])
     setLoading(false)
@@ -41,13 +44,14 @@ export function useIncomeEntries() {
   useSupabaseLive('income_entries', refresh, !!session)
 
   const addEntry = useCallback(
-    async ({ description, amount, startMonth, repeats }) => {
+    async ({ description, amount, startMonth, repeats, walletId = null }) => {
       const { error } = await supabase.from('income_entries').insert({
         org_id: profile?.org_id,
         description: description.trim(),
         amount,
         start_month: startMonth,
         end_month: repeats ? null : startMonth,
+        wallet_id: walletId,
       })
       if (!error) refresh()
       return { error }
@@ -55,8 +59,8 @@ export function useIncomeEntries() {
     [profile?.org_id, refresh]
   )
 
-  // Editar nombre/monto (los sueldos se ajustan seguido): aplica a todos los
-  // meses en los que el ingreso está vigente.
+  // Editar nombre/monto/billetera (los sueldos se ajustan seguido): aplica a
+  // todos los meses en los que el ingreso está vigente.
   const updateEntry = useCallback(
     async (id, fields) => {
       const { error } = await supabase.from('income_entries').update(fields).eq('id', id)

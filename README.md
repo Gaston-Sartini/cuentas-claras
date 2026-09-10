@@ -11,7 +11,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
 [![PWA](https://img.shields.io/badge/PWA-instalable-9E1B1B)](https://cuentas-claras-familia.netlify.app)
-[![Tests](https://img.shields.io/badge/tests_SQL-69_✓-17693A)](supabase/tests)
+[![Tests](https://img.shields.io/badge/tests_SQL-76_✓-17693A)](supabase/tests)
 
 **[✨ Probala en vivo → cuentas-claras-familia.netlify.app](https://cuentas-claras-familia.netlify.app)**
 
@@ -24,7 +24,7 @@ Cuenta demo: `demo-portfolio@cuentasclaras.test` · `demo-portfolio-2026`
 > (whole family shares one realtime workspace), credit-card purchases roll into
 > next month's bill, installment plans and fixed expenses project the months
 > ahead, and every business rule lives in Postgres (triggers + RLS), covered by
-> a 69-assertion SQL test suite that runs against a disposable Docker Postgres.
+> a 76-assertion SQL test suite that runs against a disposable Docker Postgres.
 
 ---
 
@@ -71,8 +71,14 @@ nuevo.
   Exportable a CSV.
 - 🚦 **Freno de presupuesto** — al cargar un gasto, si la categoría tiene tope
   te avisa *antes de guardar* cuánto va consumido y si con este gasto te pasás.
-- 💵 **Disponible por día** — el Inicio muestra cuánto queda del mes y cuánto
-  se puede gastar por día hasta fin de mes.
+- 💵 **Disponible por día, contra la plata real** — el Inicio muestra lo que
+  hay hoy sumando todas las billeteras (no una proyección), y cuánto es por
+  día hasta fin de mes. Cualquier movimiento real lo recalcula solo. Aparte
+  contrasta contra lo proyectado y avisa la diferencia.
+- 📥 **Ingresos con cuenta destino** — cada ingreso dice a qué billetera entra
+  ("Sueldo Yami → BBVA"). Cuando la plata cae, se marca con un toque y el
+  saldo sube solo (trigger en la base); desmarcarlo lo devuelve. Un sueldo que
+  se repite se marca mes a mes.
 - 🤝 **Deudas y préstamos** — "me deben / debo" con vencimiento opcional; se
   marcan saldadas con un toque y quedan en el historial.
 - ⏰ **Vencimientos con aviso push** — fijos con día de vencimiento y deudas
@@ -134,9 +140,9 @@ src/
                 historial/ · proximos/ · ingresos/ · banner, nav, ...
 
 supabase/
-├── migrations/ 13 migraciones incrementales (esquema + RLS + triggers + RPCs)
+├── migrations/ 14 migraciones incrementales (esquema + RLS + triggers + RPCs)
 ├── functions/  send-reminders: el push diario de vencimientos (Deno + web-push)
-└── tests/      suite SQL: 69 aserciones sobre Postgres 16 en Docker
+└── tests/      suite SQL: 76 aserciones sobre Postgres 16 en Docker
 ```
 
 ## Tests
@@ -153,9 +159,9 @@ docker run -d --name cc-test -e POSTGRES_PASSWORD=pw \
 
 docker exec cc-test psql -U postgres -v ON_ERROR_STOP=1 \
   -f /sql/tests/00_mock_supabase.sql \
-  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00013_cron_net_extensions.sql \
-  -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/09_push_test.sql
-# => 69 aserciones verdes
+  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00014_income_receipts.sql \
+  -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/10_income_receipts_test.sql
+# => 76 aserciones verdes
 ```
 
 El mock (`00_mock_supabase.sql`) simula `auth.users`, `auth.uid()` y los roles

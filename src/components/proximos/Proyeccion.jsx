@@ -3,10 +3,12 @@ import { CalendarClock, Pencil, Plus, Trash2 } from 'lucide-react'
 import SeccionPlegable from '../SeccionPlegable'
 import EditarInline from '../EditarInline'
 import FormIngreso from '../ingresos/FormIngreso'
+import { camposDeIngreso } from '../ingresos/camposIngreso'
 import { BotonIcono } from '../ui/FormPiezas'
 import { installmentDueInMonth, useInstallments } from '../../hooks/useInstallments'
 import { recurringActiveInMonth, useRecurringExpenses } from '../../hooks/useRecurringExpenses'
 import { useCardCharges } from '../../hooks/useCardCharges'
+import { useWallets } from '../../hooks/useWallets'
 import {
   incomeIsOneOff,
   incomesForMonth,
@@ -19,8 +21,8 @@ import { addMonthsISO, monthLabel, monthStartISO } from '../../lib/dates'
 
 const MESES_PROYECTADOS = 6
 
-/* Fila de un ingreso dentro del mes: nombre, monto y editar/borrar. */
-function IngresoItem({ entry, onUpdate, onRemove }) {
+/* Fila de un ingreso: nombre, a qué cuenta entra, monto y editar/borrar. */
+function IngresoItem({ entry, wallets, onUpdate, onRemove }) {
   const [editando, setEditando] = useState(false)
   const puntual = incomeIsOneOff(entry)
 
@@ -37,6 +39,9 @@ function IngresoItem({ entry, onUpdate, onRemove }) {
         <span className="min-w-0 truncate text-ink-soft">
           {entry.description}
           {puntual && <span className="text-sm"> · solo este mes</span>}
+          <span className="text-sm">
+            {entry.wallets?.name ? ` → ${entry.wallets.name}` : ' · sin cuenta'}
+          </span>
         </span>
         <span className="flex shrink-0 items-center gap-1">
           <span className="font-bold text-leaf">+{formatARS(entry.amount)}</span>
@@ -59,10 +64,7 @@ function IngresoItem({ entry, onUpdate, onRemove }) {
       {editando && (
         <div className="mt-2">
           <EditarInline
-            campos={[
-              { key: 'description', label: '¿Qué ingreso es?', tipo: 'texto', valor: entry.description },
-              { key: 'amount', label: '¿Cuánta plata entra?', tipo: 'monto', valor: Math.round(Number(entry.amount)) },
-            ]}
+            campos={camposDeIngreso(entry, wallets)}
             onSave={(valores) => onUpdate(entry.id, valores)}
             onClose={() => setEditando(false)}
           />
@@ -73,7 +75,7 @@ function IngresoItem({ entry, onUpdate, onRemove }) {
 }
 
 /* Tarjeta de un mes: lo que entra (ítem por ítem) y lo que sale. */
-function MesProyectado({ mes, entradas, detalle, sale, ingresos }) {
+function MesProyectado({ mes, entradas, detalle, sale, ingresos, wallets }) {
   const [agregando, setAgregando] = useState(false)
   const entra = incomesTotal(entradas)
   const balance = entra - sale
@@ -114,6 +116,7 @@ function MesProyectado({ mes, entradas, detalle, sale, ingresos }) {
               <IngresoItem
                 key={e.id}
                 entry={e}
+                wallets={wallets}
                 onUpdate={ingresos.updateEntry}
                 onRemove={ingresos.removeEntry}
               />
@@ -154,6 +157,7 @@ export default function Proyeccion() {
   const { recurring } = useRecurringExpenses()
   const { byMonthCard } = useCardCharges()
   const ingresos = useIncomeEntries()
+  const { wallets } = useWallets()
 
   const meses = useMemo(() => {
     const inicio = addMonthsISO(monthStartISO(), 1)
@@ -180,9 +184,9 @@ export default function Proyeccion() {
   return (
     <SeccionPlegable id="proyeccion" titulo="Los próximos meses" icono={CalendarClock}>
       <p className="mt-1 text-base text-ink-soft">
-        Lo que ya se sabe de cada mes: los ingresos con nombre (sueldos y
-        entradas puntuales) y los pagos que vencen. Tocá el + para cargar un
-        ingreso.
+        Lo que ya se sabe de cada mes: los ingresos con nombre (a qué cuenta
+        entra cada uno) y los pagos que vencen. Tocá el + para cargar un
+        ingreso; cuando llegue el mes, lo marcás como entrado desde el Inicio.
       </p>
 
       <ul className="mt-3 space-y-3">
@@ -194,6 +198,7 @@ export default function Proyeccion() {
             detalle={detalle}
             sale={sale}
             ingresos={ingresos}
+            wallets={wallets}
           />
         ))}
       </ul>

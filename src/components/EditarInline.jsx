@@ -6,10 +6,11 @@ import { parseARSInput } from '../lib/format'
  * Guardar y Cancelar. Lo usan billeteras, medios de pago, categorías, gastos
  * fijos, cuotas, ingresos y deudas para editar sin salir de la lista.
  *
- * campos: [{ key, label, tipo: 'texto' | 'monto' | 'entero', valor,
- *            opcional?, min?, max? }]  (opcional/min/max solo para 'entero')
+ * campos: [{ key, label, tipo: 'texto' | 'monto' | 'entero' | 'select', valor,
+ *            opcional?, min?, max?, opciones? }]
+ *   opcional/min/max => sólo 'entero'; opciones: [{ value, label }] => 'select'
  * onSave(valores) => { error? }  — valores ya parseados (números como número,
- * entero opcional vacío como null)
+ * entero opcional vacío y select vacío como null)
  */
 export default function EditarInline({ campos, onSave, onClose }) {
   const [valores, setValores] = useState(() =>
@@ -38,6 +39,9 @@ export default function EditarInline({ campos, onSave, onClose }) {
         if (!Number.isInteger(n) || n < min || n > max)
           return setError(`"${c.label}" va de ${min} a ${max}.`)
         parseados[c.key] = n
+      } else if (c.tipo === 'select') {
+        // "" es una opción válida (ej: ninguna billetera) y va como null
+        parseados[c.key] = valores[c.key] || null
       } else {
         const s = valores[c.key].trim()
         if (!s) return setError(`Poné un valor en "${c.label}".`)
@@ -81,6 +85,16 @@ export default function EditarInline({ campos, onSave, onClose }) {
               }
               autoFocus={campos[0].key === c.key}
             />
+          ) : c.tipo === 'select' ? (
+            <select
+              className="tap w-full rounded-xl border-2 border-line bg-card px-3 py-2 text-lg"
+              value={valores[c.key]}
+              onChange={(e) => setValores((v) => ({ ...v, [c.key]: e.target.value }))}
+            >
+              {c.opciones.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           ) : (
             <input
               className="tap w-full rounded-xl border-2 border-line bg-card px-3 py-2 text-lg"
