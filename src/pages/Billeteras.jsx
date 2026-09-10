@@ -276,36 +276,42 @@ function TarjetaBilletera({ wallet, onSetBalance, onRename }) {
 
   return (
     <div className="rounded-2xl border-2 border-line bg-card p-4">
+      {/* El saldo se lleva la fila entera: en un celular angosto, un número
+          largo peleaba lugar con los botones y terminaba tapado. */}
       <div className="flex items-center gap-3">
         <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-paper">
           <Icon size={26} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-base font-bold text-ink-soft">{wallet.name}</p>
-          <p className="money font-display text-3xl font-bold">
+          <p className="truncate text-base font-bold text-ink-soft">{wallet.name}</p>
+          <p className="money truncate font-display text-3xl font-bold">
             {formatARS(wallet.current_balance)}
           </p>
         </div>
-        {!editando && !renombrando && (
-          <>
-            <button
-              type="button"
-              onClick={() => setRenombrando(true)}
-              aria-label={`Cambiar el nombre de ${wallet.name}`}
-              className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
-            >
-              <Pencil size={20} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setEditando(true)}
-              className="tap rounded-xl border-2 border-line px-4 py-2 text-base font-bold text-ink-soft"
-            >
-              Ajustar
-            </button>
-          </>
-        )}
       </div>
+
+      {!editando && !renombrando && (
+        <div className="mt-3 flex gap-2">
+          {/* El lápiz va compacto (como en el resto de la app) y "Ajustar
+              saldo", que es lo que se usa seguido, se queda con el resto del
+              ancho: así ninguna etiqueta parte en dos líneas. */}
+          <button
+            type="button"
+            onClick={() => setRenombrando(true)}
+            aria-label={`Cambiar el nombre de ${wallet.name}`}
+            className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-4 py-2 text-ink-soft"
+          >
+            <Pencil size={20} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            className="tap flex-1 rounded-xl border-2 border-line px-3 py-2 text-base font-bold text-ink-soft"
+          >
+            Ajustar saldo
+          </button>
+        </div>
+      )}
 
       {renombrando && (
         <div className="mt-3">

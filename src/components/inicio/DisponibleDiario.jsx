@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Plus } from 'lucide-react'
+import SeccionPlegable from '../SeccionPlegable'
 import FormIngreso from '../ingresos/FormIngreso'
 import { BotonIcono } from '../ui/FormPiezas'
 import {
@@ -13,8 +14,11 @@ import { daysInMonth, monthLabel, monthStartISO, todayISO } from '../../lib/date
 
 /**
  * ¿Cuánto se puede gastar por día hasta fin de mes? Convierte el "Faltan /
- * Quedan" abstracto en una decisión diaria: (ingresos del mes − gastado del
- * mes) / días que quedan. No descuenta los fijos que falten pagar (se avisa).
+ * Quedan" abstracto en una decisión diaria: (ingresos − gastado) / días que
+ * quedan. No descuenta los fijos que falten pagar (se avisa).
+ *
+ * Se puede plegar desde el título: hay días en los que uno no quiere ver el
+ * número, y el estado queda guardado en el teléfono.
  */
 export default function DisponibleDiario() {
   const mes = monthStartISO()
@@ -29,17 +33,35 @@ export default function DisponibleDiario() {
   const diasRestantes = daysInMonth(mes) - Number(hoy.slice(8, 10)) + 1
   const disponible = entra - gasto.total
   const porDia = disponible / Math.max(diasRestantes, 1)
+  const enRojo = entra > 0 && disponible < 0
+
+  const botonIngreso = (
+    <BotonIcono
+      onClick={() => setCargando((v) => !v)}
+      label={`Agregar un ingreso de ${monthLabel(mes)}`}
+      className="px-2 py-1"
+    >
+      <Plus size={18} aria-hidden="true" />
+    </BotonIcono>
+  )
+
+  const formIngreso = cargando && (
+    <FormIngreso mes={mes} onAdd={ingresos.addEntry} onClose={() => setCargando(false)} />
+  )
 
   // Sin ingresos del mes cargados no hay métrica: invitar a cargarlos acá.
   if (entra <= 0) {
     return (
-      <div className="rounded-2xl border-2 border-line bg-card p-4">
-        <h2 className="text-lg font-bold">¿Cuánto pueden gastar por día?</h2>
+      <SeccionPlegable
+        id="disponible"
+        titulo="¿Cuánto pueden gastar por día?"
+        className="rounded-2xl border-2 border-line bg-card p-4"
+      >
         <p className="mt-1 text-base text-ink-soft">
           Cargá cuánta plata entra en {monthLabel(mes)} y te lo digo.
         </p>
         {cargando ? (
-          <FormIngreso mes={mes} onAdd={ingresos.addEntry} onClose={() => setCargando(false)} />
+          formIngreso
         ) : (
           <button
             type="button"
@@ -50,31 +72,18 @@ export default function DisponibleDiario() {
             Cargar lo que entra este mes
           </button>
         )}
-      </div>
+      </SeccionPlegable>
     )
   }
 
-  const enRojo = disponible < 0
-
   return (
-    <div
-      className={`rounded-2xl border-2 p-4 ${
-        enRojo ? 'border-alert bg-alert/10' : 'border-line bg-card'
-      }`}
+    <SeccionPlegable
+      id="disponible"
+      titulo={`Para gastar en ${monthLabel(mes)}`}
+      accion={botonIngreso}
+      className={`rounded-2xl border-2 p-4 ${enRojo ? 'border-alert bg-alert/10' : 'border-line bg-card'}`}
+      tituloClass={enRojo ? 'text-alert-deep' : ''}
     >
-      <div className="flex items-center justify-between gap-2">
-        <h2 className={`text-lg font-bold ${enRojo ? 'text-alert-deep' : ''}`}>
-          Para gastar en {monthLabel(mes)}
-        </h2>
-        <BotonIcono
-          onClick={() => setCargando((v) => !v)}
-          label={`Agregar un ingreso de ${monthLabel(mes)}`}
-          className="px-2 py-1"
-        >
-          <Plus size={18} aria-hidden="true" />
-        </BotonIcono>
-      </div>
-
       {enRojo ? (
         <>
           <p className="money mt-1 font-display text-3xl font-bold text-alert-deep">
@@ -102,9 +111,7 @@ export default function DisponibleDiario() {
         que falten pagar.
       </p>
 
-      {cargando && (
-        <FormIngreso mes={mes} onAdd={ingresos.addEntry} onClose={() => setCargando(false)} />
-      )}
-    </div>
+      {formIngreso}
+    </SeccionPlegable>
   )
 }

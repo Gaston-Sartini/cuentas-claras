@@ -1,15 +1,19 @@
 import { methodLabel } from './icons'
 
 /**
- * Filtros del Historial: los fijos por tipo de pago + un chip por cada medio
- * de pago real de la familia ("Visa Gasti", "Amex Yami", ...), así se puede
- * ver qué se cargó a cada tarjeta puntual.
+ * Filtros del Historial en dos niveles, para que no queden diez chips
+ * amontonados: arriba el tipo de pago (una fila fija de cuatro) y, sólo si
+ * ese tipo tiene más de un medio cargado, abajo los medios concretos
+ * ("Visa Yami", "Mastercard"…).
+ *
+ * El filtro es { tipo, metodo }: metodo null = todos los de ese tipo.
  */
 
 export const FILTRO_TODOS = 'todos'
-const PREFIJO_METODO = 'metodo:'
 
-const FILTROS_POR_TIPO = [
+export const FILTRO_INICIAL = { tipo: FILTRO_TODOS, metodo: null }
+
+export const FILTROS_POR_TIPO = [
   { id: FILTRO_TODOS, label: 'Todo' },
   { id: 'cash', label: 'Efectivo' },
   { id: 'debito', label: 'Débito' },
@@ -30,24 +34,24 @@ export const tipoDeMetodo = (t) => {
 }
 
 /**
- * Chips a mostrar: tipos + cada medio de pago por nombre. "Efectivo" ya tiene
- * su chip de tipo, así que el método homónimo no se repite.
+ * Medios de pago de la familia que caen dentro de un tipo. Con uno solo no
+ * hace falta la segunda fila: el chip del tipo ya alcanza.
+ * Reusa tipoDeMetodo envolviendo el método como si fuera un movimiento, así
+ * la clasificación vive en un solo lugar.
  */
-export const buildFiltros = (methods) => [
-  ...FILTROS_POR_TIPO,
-  ...methods
-    .filter((m) => m.name.toLowerCase() !== 'efectivo')
-    .map((m) => ({ id: `${PREFIJO_METODO}${m.name}`, label: m.name })),
-]
+export const metodosDelTipo = (methods, tipo) => {
+  if (tipo === FILTRO_TODOS) return []
+  const enTipo = methods.filter((m) => tipoDeMetodo({ payment_methods: m }) === tipo)
+  return enTipo.length > 1 ? enTipo : []
+}
 
 /**
- * ¿El movimiento pasa el filtro elegido? Los chips de método comparan por
- * nombre (methodLabel) para cubrir también las filas legacy que solo tienen
- * el enum viejo (visa/mastercard/...).
+ * ¿El movimiento pasa el filtro? El medio concreto compara por nombre
+ * (methodLabel) para cubrir también las filas viejas que sólo tienen el enum
+ * legacy (visa/mastercard/…).
  */
-export const cumpleFiltro = (t, filtroId) => {
-  if (filtroId === FILTRO_TODOS) return true
-  if (filtroId.startsWith(PREFIJO_METODO))
-    return methodLabel(t) === filtroId.slice(PREFIJO_METODO.length)
-  return tipoDeMetodo(t) === filtroId
+export const cumpleFiltro = (t, { tipo, metodo }) => {
+  if (tipo !== FILTRO_TODOS && tipoDeMetodo(t) !== tipo) return false
+  if (metodo && methodLabel(t) !== metodo) return false
+  return true
 }

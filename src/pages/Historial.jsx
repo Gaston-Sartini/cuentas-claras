@@ -3,12 +3,13 @@ import { useLocation } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Download, Search } from 'lucide-react'
 import ResumenPorCategoria from '../components/historial/ResumenPorCategoria'
 import GastosHormiga from '../components/historial/GastosHormiga'
+import FiltrosDePago from '../components/historial/FiltrosDePago'
 import Movimiento from '../components/historial/Movimiento'
 import { useMonthLedger } from '../hooks/useMonthLedger'
 import { installmentDueInMonth, useInstallments } from '../hooks/useInstallments'
 import { useCategoryBudgets } from '../hooks/useCategoryBudgets'
 import { usePaymentMethods } from '../hooks/usePaymentMethods'
-import { buildFiltros, cumpleFiltro, FILTRO_TODOS } from '../lib/paymentFilters'
+import { cumpleFiltro, FILTRO_INICIAL } from '../lib/paymentFilters'
 import { methodLabel } from '../lib/icons'
 import { formatARS } from '../lib/format'
 import { addMonthsISO, monthLabel, monthStartISO } from '../lib/dates'
@@ -21,15 +22,12 @@ export default function Historial() {
   const abrirId = state?.abrir ?? null
   const [mes, setMes] = useState(state?.mes ?? mesActual)
   const [busqueda, setBusqueda] = useState('')
-  const [filtro, setFiltro] = useState(FILTRO_TODOS)
+  const [filtro, setFiltro] = useState(FILTRO_INICIAL)
   const { transactions, prevMonthTotal, loading, removeTransaction, updateTransaction } =
     useMonthLedger(mes)
   const { installments } = useInstallments()
   const { budgets } = useCategoryBudgets()
   const { methods } = usePaymentMethods()
-
-  // Chips de filtro: por tipo + cada tarjeta/medio de pago de la familia
-  const filtros = useMemo(() => buildFiltros(methods), [methods])
 
   // Cuotas que vencen en el mes visto: entran al resumen y a la lista
   const cuotasDelMes = useMemo(
@@ -170,21 +168,7 @@ export default function Historial() {
             aria-label="Buscar en los movimientos del mes"
           />
         </label>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar por medio de pago">
-          {filtros.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              onClick={() => setFiltro(f.id)}
-              aria-pressed={filtro === f.id}
-              className={`tap rounded-full border-2 px-4 py-2 text-base font-bold ${
-                filtro === f.id ? 'border-ink bg-ink text-white' : 'border-line bg-card text-ink-soft'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        <FiltrosDePago filtro={filtro} onChange={setFiltro} methods={methods} />
       </div>
 
       {/* Movimientos del mes contable visto */}
