@@ -134,7 +134,7 @@ src/
                 historial/ · proximos/ · ingresos/ · banner, nav, ...
 
 supabase/
-├── migrations/ 12 migraciones incrementales (esquema + RLS + triggers + RPCs)
+├── migrations/ 13 migraciones incrementales (esquema + RLS + triggers + RPCs)
 ├── functions/  send-reminders: el push diario de vencimientos (Deno + web-push)
 └── tests/      suite SQL: 69 aserciones sobre Postgres 16 en Docker
 ```
@@ -153,7 +153,7 @@ docker run -d --name cc-test -e POSTGRES_PASSWORD=pw \
 
 docker exec cc-test psql -U postgres -v ON_ERROR_STOP=1 \
   -f /sql/tests/00_mock_supabase.sql \
-  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00012_push_subscriptions.sql \
+  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00013_cron_net_extensions.sql \
   -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/09_push_test.sql
 # => 69 aserciones verdes
 ```
