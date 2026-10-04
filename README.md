@@ -11,7 +11,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
 [![PWA](https://img.shields.io/badge/PWA-instalable-9E1B1B)](https://cuentas-claras-familia.netlify.app)
-[![Tests](https://img.shields.io/badge/tests_SQL-89_✓-17693A)](supabase/tests)
+[![Tests](https://img.shields.io/badge/tests_SQL-96_✓-17693A)](supabase/tests)
 
 **[✨ Probala en vivo → cuentas-claras-familia.netlify.app](https://cuentas-claras-familia.netlify.app)**
 
@@ -24,7 +24,7 @@ Cuenta demo: `demo-portfolio@cuentasclaras.test` · `demo-portfolio-2026`
 > (whole family shares one realtime workspace), credit-card purchases roll into
 > next month's bill, installment plans and fixed expenses project the months
 > ahead, and every business rule lives in Postgres (triggers + RLS), covered by
-> an 89-assertion SQL test suite that runs against a disposable Docker Postgres.
+> a 96-assertion SQL test suite that runs against a disposable Docker Postgres.
 
 ---
 
@@ -97,7 +97,9 @@ nuevo.
   cuotas con su número: "Equus traje · Cuota 1 de 3"). Marcarla descuenta el
   resumen entero: las compras pasan a pagadas y las cuotas quedan registradas
   (`installment_payments`), que es lo que impide cobrarlas dos veces. Cuando
-  vencen varios resúmenes se paga el que se pagó, no todos juntos.
+  vencen varios resúmenes se paga el que se pagó, no todos juntos. Y si se
+  marcó una por error, se deshace: las compras vuelven a pendientes, las
+  cuotas se descobran y la billetera recupera su plata.
 - 📲 **PWA instalable** — botón "Instalar la app" propio (Android) e
   instrucciones para iPhone; actualización silenciosa al abrir; carga offline
   con cola que sincroniza al volver la señal.
@@ -119,7 +121,7 @@ el cliente. Cualquier app que inserte una fila obtiene el mismo comportamiento.
   `org_id = current_org_id()`. `current_org_id()` es `SECURITY DEFINER` (evita
   recursión de RLS) y las funciones internas están revocadas de la API REST.
 - **RPCs atómicas** — `transfer_between_wallets()` (retiro de cajero),
-  `settle_card_month()` (cierre de tarjeta, de a una o todas, a prueba de doble toque),
+  `settle_card_month()` / `unsettle_card_month()` (cierre de tarjeta y su deshacer, de a una o todas, a prueba de doble toque),
   `get_next_month_projection()` (el banner), `check_invite_code()` (validación
   pre-signup).
 - **Medios de pago como datos, no como enum** — la tabla `payment_methods`
@@ -147,9 +149,9 @@ src/
                 historial/ · proximos/ · ingresos/ · banner, nav, ...
 
 supabase/
-├── migrations/ 16 migraciones incrementales (esquema + RLS + triggers + RPCs)
+├── migrations/ 17 migraciones incrementales (esquema + RLS + triggers + RPCs)
 ├── functions/  send-reminders: el push diario de vencimientos (Deno + web-push)
-└── tests/      suite SQL: 89 aserciones sobre Postgres 16 en Docker
+└── tests/      suite SQL: 96 aserciones sobre Postgres 16 en Docker
 ```
 
 ## Tests
@@ -166,9 +168,9 @@ docker run -d --name cc-test -e POSTGRES_PASSWORD=pw \
 
 docker exec cc-test psql -U postgres -v ON_ERROR_STOP=1 \
   -f /sql/tests/00_mock_supabase.sql \
-  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00016_installment_payments.sql \
-  -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/12_full_statement_test.sql
-# => 89 aserciones verdes
+  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00017_unsettle_card.sql \
+  -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/13_unsettle_test.sql
+# => 96 aserciones verdes
 ```
 
 El mock (`00_mock_supabase.sql`) simula `auth.users`, `auth.uid()` y los roles

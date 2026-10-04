@@ -1,4 +1,5 @@
 import PagoTarjeta from '../components/proximos/PagoTarjeta'
+import DeshacerPago from '../components/proximos/DeshacerPago'
 import GastosFijos from '../components/proximos/GastosFijos'
 import Cuotas from '../components/proximos/Cuotas'
 import Deudas from '../components/proximos/Deudas'
@@ -15,6 +16,7 @@ export default function Proximos() {
     <section className="space-y-6">
       <h1 className="font-display text-3xl font-semibold">Próximos</h1>
       <PagoTarjeta />
+      <DeshacerPago />
       <GastosFijos />
       <Cuotas />
       <Deudas />
