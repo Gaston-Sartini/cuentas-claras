@@ -4,7 +4,7 @@ import { BellRing, CalendarClock, CreditCard } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useRecurringExpenses } from '../../hooks/useRecurringExpenses'
 import { useDebts } from '../../hooks/useDebts'
-import { useCardCharges } from '../../hooks/useCardCharges'
+import { useCardStatements } from '../../hooks/useCardStatements'
 import { etiquetaVencimiento, vencimientosProximos } from '../../lib/vencimientos'
 import {
   activarAvisos,
@@ -26,7 +26,7 @@ export default function ProximosVencimientos() {
   const { profile } = useAuth()
   const { recurring } = useRecurringExpenses()
   const { debts } = useDebts()
-  const { dueTotal, dueCards } = useCardCharges()
+  const { statements, totalResumenes } = useCardStatements()
   const [avisos, setAvisos] = useState(() => avisosActivos())
   const [conPush, setConPush] = useState(() => pushActivo())
 
@@ -53,7 +53,7 @@ export default function ProximosVencimientos() {
     notificarVencimientos(items)
   }, [items])
 
-  if (items.length === 0 && dueTotal <= 0) return null
+  if (items.length === 0 && statements.length === 0) return null
 
   return (
     <div className="rounded-2xl border-2 border-line bg-card p-4">
@@ -82,7 +82,7 @@ export default function ProximosVencimientos() {
       <ul className="mt-2 space-y-2 text-base">
         {/* Una línea por tarjeta: con varias, hay que saber cuánto es cada
             resumen para decidir cuál se paga primero. */}
-        {dueCards.map((card) => (
+        {statements.map((card) => (
           <li key={card.key}>
             <Link to="/proximos" className="flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2 font-bold text-alert-deep">
@@ -95,10 +95,10 @@ export default function ProximosVencimientos() {
             </Link>
           </li>
         ))}
-        {dueCards.length > 1 && (
+        {statements.length > 1 && (
           <li className="money flex justify-between gap-3 text-sm text-ink-soft">
-            <span>Las {dueCards.length} tarjetas juntas</span>
-            <span className="font-bold">{formatARS(dueTotal)}</span>
+            <span>Las {statements.length} tarjetas juntas</span>
+            <span className="font-bold">{formatARS(totalResumenes)}</span>
           </li>
         )}
         {items.map((it) => (

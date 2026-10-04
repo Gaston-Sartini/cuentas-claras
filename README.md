@@ -91,10 +91,10 @@ nuevo.
 - 👛 **Billeteras** — saldos que se mueven solos con cada gasto, ajuste manual,
   y pasar plata de cualquier cuenta a cualquier otra (sacar del cajero,
   cargar la billetera virtual) sin que cuente como gasto.
-- 💳 **Cierre de tarjeta de a una** — cuando vencen varios resúmenes, el Inicio
-  y Próximos muestran cuánto es cada tarjeta y se paga la que se pagó, no
-  todas juntas. Al lado va cuánto suman las cuotas del mismo resumen, para
-  cuadrar contra lo que debita el banco.
+- 💳 **Resumen de tarjeta, desglosado** — cada tarjeta muestra el total que va
+  a debitar el banco (compras + cuotas) y, tocándola, se abre el detalle: los
+  gastos uno por uno y las cuotas con su número ("Equus traje · Cuota 1 de 3").
+  Cuando vencen varios resúmenes se paga el que se pagó, no todos juntos.
 - 📲 **PWA instalable** — botón "Instalar la app" propio (Android) e
   instrucciones para iPhone; actualización silenciosa al abrir; carga offline
   con cola que sincroniza al volver la señal.

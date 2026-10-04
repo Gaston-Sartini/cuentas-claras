@@ -21,7 +21,7 @@ export function useCardCharges() {
   const refresh = useCallback(async () => {
     const { data } = await supabase
       .from('transactions')
-      .select('billing_month, amount, payment_method, payment_method_id, payment_methods(name)')
+      .select('id, date, description, billing_month, amount, payment_method, payment_method_id, payment_methods(name)')
       .eq('kind', 'expense')
       .eq('status', 'next_month')
     setRows(data ?? [])
@@ -58,9 +58,16 @@ export function useCardCharges() {
         methodId: t.payment_method_id ?? null,
         name: t.payment_methods?.name ?? METHOD_META[t.payment_method]?.label ?? 'Tarjeta',
         total: 0,
+        items: [],
         months: new Set(),
       }
       actual.total += Number(t.amount)
+      actual.items.push({
+        id: t.id,
+        date: t.date,
+        description: t.description,
+        amount: Number(t.amount),
+      })
       actual.months.add(t.billing_month)
       porTarjeta.set(clave, actual)
     }
@@ -71,7 +78,11 @@ export function useCardCharges() {
       dueMonths: vencidos,
       dueTotal: total,
       dueCards: [...porTarjeta.values()]
-        .map((c) => ({ ...c, months: [...c.months].sort() }))
+        .map((c) => ({
+          ...c,
+          months: [...c.months].sort(),
+          items: c.items.sort((a, b) => b.amount - a.amount),
+        }))
         .sort((a, b) => b.total - a.total),
     }
   }, [rows])
