@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useCardCharges } from './useCardCharges'
 import { installmentDueInMonth, useInstallments } from './useInstallments'
+import { useInstallmentPayments } from './useInstallmentPayments'
 
 /**
  * El resumen de cada tarjeta que vence: lo que el banco va a debitar, que son
@@ -9,14 +10,15 @@ import { installmentDueInMonth, useInstallments } from './useInstallments'
  * Vive acá, componiendo los dos hooks, para que el Inicio y Próximos muestren
  * exactamente el mismo total y el mismo desglose.
  *
- * Ojo con una distinción que importa: `gastos` es lo que el cierre marca como
- * pagado y descuenta de la billetera; `cuotas` son proyección (no tienen
- * estado de pagada) y van al total sólo para poder cuadrar contra el resumen
- * de verdad.
+ * `gastos` y `cuotas` son las dos patas del mismo resumen, y el cierre
+ * descuenta las dos: las compras pasan a 'settled' y las cuotas quedan
+ * registradas en installment_payments, que es lo que evita cobrarlas dos
+ * veces y lo que las saca de acá.
  */
 export function useCardStatements() {
   const { dueCards, dueMonths, dueTotal, settleDue, loading } = useCardCharges()
   const { installments } = useInstallments()
+  const { isPaid } = useInstallmentPayments()
 
   const statements = useMemo(() => {
     // Cuotas que vencen en los meses que se están pagando, por tarjeta
@@ -25,6 +27,8 @@ export function useCardStatements() {
       for (const mes of dueMonths) {
         const k = installmentDueInMonth(inst, mes)
         if (!k) continue
+        // Si ya entró en un resumen pagado, deja de estar pendiente
+        if (isPaid(inst.id, mes)) continue
         const clave = inst.payment_method_id ?? `legacy:${inst.payment_method}`
         const actual = cuotasPorTarjeta.get(clave) ?? { total: 0, items: [] }
         actual.total += Number(inst.amount_per_installment)
@@ -63,7 +67,7 @@ export function useCardStatements() {
         }
       })
       .sort((a, b) => b.total - a.total)
-  }, [dueCards, dueMonths, installments])
+  }, [dueCards, dueMonths, installments, isPaid])
 
   // Lo que el banco va a debitar en total, contando cuotas
   const totalResumenes = statements.reduce((sum, s) => sum + s.total, 0)

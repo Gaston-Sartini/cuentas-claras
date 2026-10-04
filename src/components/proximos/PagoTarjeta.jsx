@@ -5,32 +5,48 @@ import { useWallets } from '../../hooks/useWallets'
 import { formatARS } from '../../lib/format'
 import { formatShortDate, monthLabel } from '../../lib/dates'
 
-/* Un grupo del desglose: "Gastos $X" y abajo los movimientos que lo arman. */
-function GrupoDetalle({ titulo, total, items, aclaracion, renderItem }) {
+/* Un grupo del resumen ("Gastos" / "Cuotas"): se toca y muestra sus ítems. */
+function GrupoPlegable({ titulo, total, items, abierto, onAlternar, renderItem }) {
   if (items.length === 0) return null
+
   return (
-    <div className="mt-2">
-      <div className="money flex items-baseline justify-between gap-2 text-base font-bold">
-        <span>{titulo}</span>
-        <span>{formatARS(total)}</span>
-      </div>
-      {aclaracion && <p className="text-sm text-ink-soft">{aclaracion}</p>}
-      <ul className="mt-1 space-y-1 border-l-2 border-line pl-3">
-        {items.map((it) => (
-          <li key={it.id} className="flex items-baseline justify-between gap-2 text-base">
-            <span className="min-w-0 truncate text-ink-soft">{renderItem(it)}</span>
-            <span className="money shrink-0 font-medium">{formatARS(it.amount)}</span>
-          </li>
-        ))}
-      </ul>
+    <div>
+      <button
+        type="button"
+        onClick={onAlternar}
+        aria-expanded={abierto}
+        className="tap flex w-full items-baseline justify-between gap-2 py-1 text-left"
+      >
+        <span className="money flex min-w-0 items-center gap-1 text-base font-bold">
+          <ChevronDown
+            size={16}
+            aria-hidden="true"
+            className={`shrink-0 text-ink-soft transition-transform ${abierto ? '' : '-rotate-90'}`}
+          />
+          {titulo}
+          <span className="text-sm font-medium text-ink-soft">({items.length})</span>
+        </span>
+        <span className="money shrink-0 text-base font-bold">{formatARS(total)}</span>
+      </button>
+
+      {abierto && (
+        <ul className="mb-1 ml-2 space-y-1 border-l-2 border-line pl-3">
+          {items.map((it) => (
+            <li key={it.id} className="flex items-baseline justify-between gap-2 text-base">
+              <span className="min-w-0 truncate text-ink-soft">{renderItem(it)}</span>
+              <span className="money shrink-0 font-medium">{formatARS(it.amount)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
 
-/* Una tarjeta: total arriba, y tocando el título se abre el detalle. */
-function TarjetaResumen({ resumen, abierta, onAlternar, onPagar, pagando, banco }) {
-  const sinCompras = resumen.gastos.total === 0
-
+/* Una tarjeta: total arriba; abierta muestra Gastos y Cuotas, cada uno plegable. */
+function TarjetaResumen({
+  resumen, abierta, grupo, onAlternar, onAlternarGrupo, onPagar, pagando,
+}) {
   return (
     <li className="rounded-xl border-2 border-alert/40 bg-card p-3">
       <button
@@ -51,21 +67,21 @@ function TarjetaResumen({ resumen, abierta, onAlternar, onPagar, pagando, banco 
       </button>
 
       {abierta && (
-        <div className="mt-1 pl-1">
-          <GrupoDetalle
+        <div className="mt-1 pl-5">
+          <GrupoPlegable
             titulo="Gastos"
             total={resumen.gastos.total}
             items={resumen.gastos.items}
-            aclaracion={
-              banco ? `Es lo que se descuenta del ${banco.name} al marcar la tarjeta.` : null
-            }
+            abierto={grupo === 'gastos'}
+            onAlternar={() => onAlternarGrupo('gastos')}
             renderItem={(it) => `${formatShortDate(it.date)} · ${it.description}`}
           />
-          <GrupoDetalle
+          <GrupoPlegable
             titulo="Cuotas"
             total={resumen.cuotas.total}
             items={resumen.cuotas.items}
-            aclaracion="Vienen en el mismo resumen, pero no se descuentan al marcar."
+            abierto={grupo === 'cuotas'}
+            onAlternar={() => onAlternarGrupo('cuotas')}
             renderItem={(it) => `${it.description} · ${it.label}`}
           />
         </div>
@@ -74,18 +90,13 @@ function TarjetaResumen({ resumen, abierta, onAlternar, onPagar, pagando, banco 
       <button
         type="button"
         onClick={onPagar}
-        disabled={pagando !== null || !resumen.methodId || sinCompras}
+        disabled={pagando !== null || !resumen.methodId}
         className="tap mt-2 w-full rounded-xl bg-ink px-4 py-2 text-base font-bold text-white disabled:opacity-60"
       >
         {pagando === resumen.key ? 'Registrando…' : `Ya pagué ${resumen.name}`}
       </button>
 
-      {sinCompras && (
-        <p className="mt-1 text-sm text-ink-soft">
-          Este mes sólo tiene cuotas: no hay compras nuevas que marcar.
-        </p>
-      )}
-      {!sinCompras && !resumen.methodId && (
+      {!resumen.methodId && (
         <p className="mt-1 text-sm text-ink-soft">
           Esta tarjeta viene de una carga vieja: se marca con el botón de abajo.
         </p>
@@ -96,20 +107,28 @@ function TarjetaResumen({ resumen, abierta, onAlternar, onPagar, pagando, banco 
 
 /**
  * Cierre mensual: ¿pagaste el resumen de la tarjeta? Cada tarjeta muestra el
- * total que va a debitar el banco (compras + cuotas) y, abierta, el detalle
- * de cada parte. El botón marca las compras: las cuotas no tienen estado de
- * pagada, están para poder cuadrar contra el resumen de verdad.
+ * total que debita el banco y, abierta, las dos patas que lo forman —
+ * "Gastos" y "Cuotas"— cada una desplegable a su propio detalle.
+ *
+ * Marcarla descuenta el resumen entero: las compras pasan a pagadas y las
+ * cuotas del mes quedan registradas, que es lo que impide cobrarlas de nuevo.
  */
 export default function PagoTarjeta() {
-  const { statements, dueMonths, dueTotal, totalResumenes, settleDue } = useCardStatements()
+  const { statements, dueMonths, totalResumenes, settleDue } = useCardStatements()
   const { wallets } = useWallets()
   const banco = wallets.find((w) => w.type === 'bank')
   const [descontarBanco, setDescontarBanco] = useState(true)
   const [abierta, setAbierta] = useState(null) // key de la tarjeta desplegada
+  const [grupo, setGrupo] = useState(null) // 'gastos' o 'cuotas' de esa tarjeta
   const [pagando, setPagando] = useState(null) // key de la tarjeta, o 'todas'
   const [error, setError] = useState('')
 
   if (statements.length === 0) return null
+
+  const alternarTarjeta = (key) => {
+    setAbierta(abierta === key ? null : key)
+    setGrupo(null)
+  }
 
   const pagar = async (resumen) => {
     setPagando(resumen?.key ?? 'todas')
@@ -146,9 +165,10 @@ export default function PagoTarjeta() {
           <TarjetaResumen
             key={resumen.key}
             resumen={resumen}
-            banco={banco}
             abierta={abierta === resumen.key}
-            onAlternar={() => setAbierta(abierta === resumen.key ? null : resumen.key)}
+            grupo={abierta === resumen.key ? grupo : null}
+            onAlternar={() => alternarTarjeta(resumen.key)}
+            onAlternarGrupo={(g) => setGrupo(grupo === g ? null : g)}
             onPagar={() => pagar(resumen)}
             pagando={pagando}
           />
@@ -164,7 +184,7 @@ export default function PagoTarjeta() {
             className="h-6 w-6 accent-ink"
           />
           <span className="text-base font-medium">
-            Descontar del {banco.name} las compras que marque como pagadas
+            Descontar del {banco.name} el resumen que marque como pagado
           </span>
         </label>
       )}
@@ -173,7 +193,7 @@ export default function PagoTarjeta() {
         <p role="alert" className="mt-2 text-base font-bold text-alert-deep">{error}</p>
       )}
 
-      {!unaSola && dueTotal > 0 && (
+      {!unaSola && (
         <button
           type="button"
           onClick={() => pagar(null)}
@@ -182,7 +202,7 @@ export default function PagoTarjeta() {
         >
           {pagando === 'todas'
             ? 'Registrando…'
-            : `Ya las pagué todas (${formatARS(dueTotal)} de compras)`}
+            : `Ya las pagué todas (${formatARS(totalResumenes)})`}
         </button>
       )}
     </div>

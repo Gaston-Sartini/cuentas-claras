@@ -23,13 +23,15 @@ insert into public.transactions
 values ((select public.current_org_id()), 'Compra lejana', 99000, 'visa', 'next_month',
         (date_trunc('month', now()) + interval '2 month')::date);
 
--- 1) El total del cierre = todas las tarjetas de ese mes (30000 Zapatillas + 20000 Farmacia)
+-- 1) El total del cierre = el resumen entero de ese mes: las compras
+--    (30000 Zapatillas + 20000 Farmacia) MAS las cuotas que vencen
+--    (65000 de la cuota 3 de 6 de Libreria, cargada en 01_smoke_test).
 select public.settle_card_month(
   (date_trunc('month', now()) + interval '1 month')::date, :'w_bank') as settled_total
 \gset
 
-select public.t_assert(:'settled_total'::numeric = 50000,
-  'settle devuelve el total de tarjetas del mes');
+select public.t_assert(:'settled_total'::numeric = 115000,
+  'settle devuelve el resumen del mes: compras mas cuotas');
 
 -- 2) Las compras del mes quedan pagadas
 select public.t_assert(
@@ -45,11 +47,16 @@ select public.t_assert(
     = (date_trunc('month', now()) + interval '1 month')::date,
   'el cierre no cambia billing_month (el ledger mensual queda intacto)');
 
--- 4) La billetera elegida se descuenta por el total
+-- 4) La billetera elegida se descuenta por el resumen entero
 select public.t_assert(
   (select current_balance from public.wallets where id = :'w_bank')
-    = :'bank_before'::numeric - 50000,
-  'settle descuenta el total de la billetera elegida');
+    = :'bank_before'::numeric - 115000,
+  'settle descuenta el resumen entero de la billetera elegida');
+
+select public.t_assert(
+  (select count(*) from public.installment_payments
+    where month_year = (date_trunc('month', now()) + interval '1 month')::date) = 1,
+  'la cuota del resumen queda registrada como cobrada');
 
 -- 5) Otros meses no se tocan
 select public.t_assert(
@@ -64,7 +71,7 @@ select public.t_assert(
 
 select public.t_assert(
   (select current_balance from public.wallets where id = :'w_bank')
-    = :'bank_before'::numeric - 50000,
+    = :'bank_before'::numeric - 115000,
   'el doble toque no descuenta dos veces');
 
 -- 7) p_wallet null: marca pagado sin tocar billeteras
@@ -78,7 +85,7 @@ select public.t_assert(
 
 select public.t_assert(
   (select current_balance from public.wallets where id = :'w_bank')
-    = :'bank_before'::numeric - 50000,
+    = :'bank_before'::numeric - 115000,
   'settle con wallet null no toca billeteras');
 
 commit;

@@ -2,6 +2,8 @@
 
 -- ============ Cerrar el resumen de una sola tarjeta ============
 -- Reusa la familia 1 (Norma) de 01_smoke_test.sql.
+-- Usa meses lejanos (+20/+21) a proposito: ahi no vence ninguna cuota de los
+-- otros tests, asi las cuentas dependen solo de lo que carga este archivo.
 
 select id as u1_id from auth.users where email = 'norma@test.com'
 \gset
@@ -22,13 +24,13 @@ insert into public.transactions
   (org_id, description, amount, payment_method_id, kind, status, billing_month, date)
 values
   ((select public.current_org_id()), 'Compra Visa', 30000, :'visa_id', 'expense',
-   'next_month', (date_trunc('month', now()) + interval '1 month')::date, current_date),
+   'next_month', (date_trunc('month', now()) + interval '20 month')::date, current_date),
   ((select public.current_org_id()), 'Compra Master', 20000, :'master_id', 'expense',
-   'next_month', (date_trunc('month', now()) + interval '1 month')::date, current_date);
+   'next_month', (date_trunc('month', now()) + interval '20 month')::date, current_date);
 
 -- 1) Cerrar sólo la Visa deja la Mastercard pendiente
 select public.settle_card_month(
-  (date_trunc('month', now()) + interval '1 month')::date, null, :'visa_id') as cerrado_visa
+  (date_trunc('month', now()) + interval '20 month')::date, null, :'visa_id') as cerrado_visa
 \gset
 
 select public.t_assert(
@@ -42,7 +44,7 @@ select public.t_assert(
 
 -- 2) Cerrar el resto (sin medio) agarra lo que quedaba
 select public.settle_card_month(
-  (date_trunc('month', now()) + interval '1 month')::date) as cerrado_resto
+  (date_trunc('month', now()) + interval '20 month')::date) as cerrado_resto
 \gset
 
 select public.t_assert(
@@ -60,12 +62,12 @@ insert into public.transactions
   (org_id, description, amount, payment_method_id, kind, status, billing_month, date)
 values
   ((select public.current_org_id()), 'Visa a descontar', 11000, :'visa_id', 'expense',
-   'next_month', (date_trunc('month', now()) + interval '2 month')::date, current_date),
+   'next_month', (date_trunc('month', now()) + interval '21 month')::date, current_date),
   ((select public.current_org_id()), 'Master que queda', 5000, :'master_id', 'expense',
-   'next_month', (date_trunc('month', now()) + interval '2 month')::date, current_date);
+   'next_month', (date_trunc('month', now()) + interval '21 month')::date, current_date);
 
 select public.settle_card_month(
-  (date_trunc('month', now()) + interval '2 month')::date, :'banco_id', :'visa_id') as cerrado_con_banco
+  (date_trunc('month', now()) + interval '21 month')::date, :'banco_id', :'visa_id') as cerrado_con_banco
 \gset
 
 select public.t_assert(
