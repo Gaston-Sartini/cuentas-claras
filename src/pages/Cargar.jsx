@@ -11,7 +11,7 @@ import AvisoTope from '../components/cargar/AvisoTope'
 import { enqueue } from '../lib/offlineQueue'
 import { categoryIcon, methodIcon, WALLET_ICONS } from '../lib/icons'
 import { formatARS, parseARSInput } from '../lib/format'
-import { addMonthsISO, monthStartISO, nextMonthName, todayISO } from '../lib/dates'
+import { addMonthsISO, monthLabel, monthStartISO, todayISO } from '../lib/dates'
 
 function NuevoMedioDePago({ wallets, onCreate, onClose }) {
   const [nombre, setNombre] = useState('')
@@ -155,6 +155,11 @@ export default function Cargar() {
   const esCredito = metodo?.kind === 'credit'
   const cuotas = esCredito ? Math.max(1, Number(cuotasStr) || 1) : 1
 
+  // El resumen donde cae una compra con crédito: el mes siguiente al de la
+  // compra. Sale de la fecha elegida, no de hoy, para que anotar algo viejo
+  // caiga en el resumen que corresponde.
+  const mesDelResumen = addMonthsISO(monthStartISO(new Date(`${fecha}T00:00:00`)), 1)
+
   // Billetera que se descuenta si el método es de débito
   const billeteraAfectada = useMemo(() => {
     if (metodo?.kind !== 'debit') return null
@@ -173,7 +178,9 @@ export default function Cargar() {
     const desc = descripcion.trim() || categoria?.name || 'Gasto'
 
     // Crédito en cuotas: no es un gasto de hoy, es un plan de cuotas que
-    // arranca el mes que viene (cada mes suma su parte a la proyección).
+    // arranca en el resumen siguiente a la COMPRA — no al día en que se
+    // carga. Si anotás en octubre algo que compraste el 14 de septiembre, la
+    // cuota 1 te vino en el resumen de octubre, no en el de noviembre.
     const table = cuotas > 1 ? 'installments' : 'transactions'
     const payload =
       cuotas > 1
@@ -185,7 +192,7 @@ export default function Cargar() {
             amount_per_installment: Math.round((monto / cuotas) * 100) / 100,
             payment_method_id: metodo.id,
             category_id: categoriaId,
-            start_date: addMonthsISO(monthStartISO(), 1),
+            start_date: mesDelResumen,
           }
         : {
             org_id: profile.org_id,
@@ -365,12 +372,12 @@ export default function Cargar() {
                   {cuotas} cuotas de <strong className="money">
                     {formatARS(monto > 0 ? monto / cuotas : 0)}
                   </strong>{' '}
-                  por mes, la primera en <strong>{nextMonthName()}</strong>.
+                  por mes, la primera en <strong>{monthLabel(mesDelResumen)}</strong>.
                 </>
               ) : (
                 <>
-                  Va a la cuenta de <strong>{nextMonthName()}</strong>: hoy no
-                  descuenta ninguna billetera.
+                  Va a la cuenta de <strong>{monthLabel(mesDelResumen)}</strong>: hoy
+                  no descuenta ninguna billetera.
                 </>
               )}
             </p>
