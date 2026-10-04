@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
-import { Banknote, Pencil, Plus, Target, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Pencil, Plus, Target, Trash2 } from 'lucide-react'
 import { useWallets } from '../hooks/useWallets'
 import { useCategories } from '../hooks/useCategories'
 import { useCategoryBudgets } from '../hooks/useCategoryBudgets'
 import { usePaymentMethods } from '../hooks/usePaymentMethods'
 import NuevaCategoria from '../components/NuevaCategoria'
+import TransferirPlata from '../components/billeteras/TransferirPlata'
 import EditarInline from '../components/EditarInline'
 import { categoryIcon, methodIcon, WALLET_ICONS } from '../lib/icons'
 import { formatARS, parseARSInput } from '../lib/format'
@@ -483,31 +484,6 @@ function Presupuestos() {
 
 export default function Billeteras() {
   const { wallets, loading, setBalance, transfer, createWallet, renameWallet } = useWallets()
-  const [montoStr, setMontoStr] = useState('')
-  const [retirando, setRetirando] = useState(false)
-  const [msg, setMsg] = useState(null) // { tipo: 'ok' | 'error', texto }
-
-  const banco = useMemo(() => wallets.find((w) => w.type === 'bank'), [wallets])
-  const efectivo = useMemo(() => wallets.find((w) => w.type === 'cash'), [wallets])
-
-  const retirar = async () => {
-    const monto = parseARSInput(montoStr)
-    if (!(monto > 0)) {
-      setMsg({ tipo: 'error', texto: 'Poné cuánto sacaste.' })
-      return
-    }
-    setRetirando(true)
-    setMsg(null)
-    const { error } = await transfer(banco.id, efectivo.id, monto, 'Retiro cajero')
-    setRetirando(false)
-    if (error) {
-      setMsg({ tipo: 'error', texto: 'No se pudo registrar el retiro. Probá de nuevo.' })
-    } else {
-      setMontoStr('')
-      setMsg({ tipo: 'ok', texto: `Listo: ${formatARS(monto)} pasaron de Banco a Efectivo.` })
-      setTimeout(() => setMsg(null), 4000)
-    }
-  }
 
   return (
     <section className="space-y-6">
@@ -524,50 +500,7 @@ export default function Billeteras() {
         </div>
       )}
 
-      {banco && efectivo && (
-        <div className="rounded-2xl border-2 border-line bg-card p-4">
-          <div className="flex items-center gap-2">
-            <Banknote size={24} aria-hidden="true" />
-            <h2 className="text-lg font-bold">¿Sacaste plata del cajero?</h2>
-          </div>
-          <p className="mt-1 text-base text-ink-soft">
-            Pasa el monto de Banco a Efectivo. No cuenta como gasto.
-          </p>
-          <div className="mt-3 flex gap-2">
-            <div className="flex flex-1 items-center gap-1 rounded-xl border-2 border-line px-3">
-              <span className="text-lg font-bold text-ink-soft">$</span>
-              <input
-                className="money tap w-full bg-transparent py-2 text-lg outline-none"
-                inputMode="numeric"
-                value={montoStr}
-                onChange={(e) => setMontoStr(e.target.value.replace(/[^\d.,]/g, ''))}
-                placeholder="0"
-                aria-label="Monto retirado del cajero"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={retirar}
-              disabled={retirando}
-              className="tap rounded-xl bg-ink px-5 py-2 text-lg font-bold text-white disabled:opacity-60"
-            >
-              {retirando ? '…' : 'Registrar'}
-            </button>
-          </div>
-          {msg && (
-            <p
-              role={msg.tipo === 'error' ? 'alert' : 'status'}
-              className={`mt-2 rounded-xl border-2 px-4 py-3 text-base font-medium ${
-                msg.tipo === 'error'
-                  ? 'border-alert bg-alert/10 text-alert-deep'
-                  : 'border-leaf bg-leaf/10 text-leaf'
-              }`}
-            >
-              {msg.texto}
-            </p>
-          )}
-        </div>
-      )}
+      <TransferirPlata wallets={wallets} onTransfer={transfer} />
 
       <MediosDePago />
 

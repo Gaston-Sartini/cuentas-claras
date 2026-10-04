@@ -15,7 +15,6 @@ import {
 } from '../../lib/notifications'
 import { pushActivo, suscribirPush } from '../../lib/push'
 import { formatARS } from '../../lib/format'
-import { monthLabel } from '../../lib/dates'
 
 /**
  * Qué vence en los próximos días: fijos con día de vencimiento, deudas con
@@ -27,7 +26,7 @@ export default function ProximosVencimientos() {
   const { profile } = useAuth()
   const { recurring } = useRecurringExpenses()
   const { debts } = useDebts()
-  const { dueMonths, dueTotal } = useCardCharges()
+  const { dueTotal, dueCards } = useCardCharges()
   const [avisos, setAvisos] = useState(() => avisosActivos())
   const [conPush, setConPush] = useState(() => pushActivo())
 
@@ -81,20 +80,25 @@ export default function ProximosVencimientos() {
       </div>
 
       <ul className="mt-2 space-y-2 text-base">
-        {dueTotal > 0 && (
-          <li>
+        {/* Una línea por tarjeta: con varias, hay que saber cuánto es cada
+            resumen para decidir cuál se paga primero. */}
+        {dueCards.map((card) => (
+          <li key={card.key}>
             <Link to="/proximos" className="flex items-center justify-between gap-3">
               <span className="flex min-w-0 items-center gap-2 font-bold text-alert-deep">
                 <CreditCard size={18} aria-hidden="true" className="shrink-0" />
-                <span className="min-w-0">
-                  Tarjeta de {dueMonths.map((m) => monthLabel(m)).join(' y ')} — está para
-                  pagar
-                </span>
+                <span className="min-w-0 truncate">{card.name} — está para pagar</span>
               </span>
               <span className="money shrink-0 font-bold text-alert-deep">
-                {formatARS(dueTotal)}
+                {formatARS(card.total)}
               </span>
             </Link>
+          </li>
+        ))}
+        {dueCards.length > 1 && (
+          <li className="money flex justify-between gap-3 text-sm text-ink-soft">
+            <span>Las {dueCards.length} tarjetas juntas</span>
+            <span className="font-bold">{formatARS(dueTotal)}</span>
           </li>
         )}
         {items.map((it) => (

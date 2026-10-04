@@ -88,9 +88,13 @@ nuevo.
 - 🔮 **Proyección** — para cada mes futuro: cuánto entra (ingresos con nombre:
   "Sueldo Yami" que se repite todos los meses, "Plata que debía Nico" puntual),
   cuánto sale (por tarjeta y por gasto fijo, ítem por ítem) y cuánto queda.
-- 👛 **Billeteras** — saldos de Banco / MercadoPago / Efectivo que se mueven
-  solos con cada gasto, ajuste manual, y "¿Sacaste plata del cajero?" que
-  transfiere Banco → Efectivo sin contar como gasto.
+- 👛 **Billeteras** — saldos que se mueven solos con cada gasto, ajuste manual,
+  y pasar plata de cualquier cuenta a cualquier otra (sacar del cajero,
+  cargar la billetera virtual) sin que cuente como gasto.
+- 💳 **Cierre de tarjeta de a una** — cuando vencen varios resúmenes, el Inicio
+  y Próximos muestran cuánto es cada tarjeta y se paga la que se pagó, no
+  todas juntas. Al lado va cuánto suman las cuotas del mismo resumen, para
+  cuadrar contra lo que debita el banco.
 - 📲 **PWA instalable** — botón "Instalar la app" propio (Android) e
   instrucciones para iPhone; actualización silenciosa al abrir; carga offline
   con cola que sincroniza al volver la señal.
@@ -112,7 +116,7 @@ el cliente. Cualquier app que inserte una fila obtiene el mismo comportamiento.
   `org_id = current_org_id()`. `current_org_id()` es `SECURITY DEFINER` (evita
   recursión de RLS) y las funciones internas están revocadas de la API REST.
 - **RPCs atómicas** — `transfer_between_wallets()` (retiro de cajero),
-  `settle_card_month()` (cierre de tarjeta, a prueba de doble toque),
+  `settle_card_month()` (cierre de tarjeta, de a una o todas, a prueba de doble toque),
   `get_next_month_projection()` (el banner), `check_invite_code()` (validación
   pre-signup).
 - **Medios de pago como datos, no como enum** — la tabla `payment_methods`
@@ -140,9 +144,9 @@ src/
                 historial/ · proximos/ · ingresos/ · banner, nav, ...
 
 supabase/
-├── migrations/ 14 migraciones incrementales (esquema + RLS + triggers + RPCs)
+├── migrations/ 15 migraciones incrementales (esquema + RLS + triggers + RPCs)
 ├── functions/  send-reminders: el push diario de vencimientos (Deno + web-push)
-└── tests/      suite SQL: 76 aserciones sobre Postgres 16 en Docker
+└── tests/      suite SQL: 76 aserciones verdes + 11_settle_one_card (sin correr aún) sobre Postgres 16 en Docker
 ```
 
 ## Tests
