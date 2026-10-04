@@ -20,7 +20,7 @@ export function useRecurringExpenses() {
   const refresh = useCallback(async () => {
     const { data } = await supabase
       .from('recurring_expenses')
-      .select('*, categories(name, icon), payment_methods(name)')
+      .select('*, categories(name, icon), payment_methods(name, kind)')
       .order('amount', { ascending: false })
     setRecurring(data ?? [])
     setLoading(false)

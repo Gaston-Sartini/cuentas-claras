@@ -64,7 +64,9 @@ nuevo.
   proyecta automáticamente en los meses que vienen. También se cargan planes
   ya empezados ("voy por la 3 de 12").
 - 📅 **Gastos fijos** — alquiler, expensas, luz: se cargan una vez y alimentan
-  la proyección de todos los meses.
+  la proyección de todos los meses. Los que se pagan con una tarjeta suman
+  dentro del total de esa tarjeta, así la proyección dice de una cuánto va a
+  venir de resumen sin tener que sumar a mano.
 - 📊 **Resumen mensual** — barras por categoría con porcentaje (tocás una y ves
   los movimientos que la suman), presupuestos con semáforo (verde → ámbar →
   rojo), radar de **gastos hormiga** y comparativa contra el mes anterior.

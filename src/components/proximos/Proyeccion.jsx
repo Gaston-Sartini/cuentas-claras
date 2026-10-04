@@ -163,18 +163,30 @@ export default function Proyeccion() {
     const inicio = addMonthsISO(monthStartISO(), 1)
     return Array.from({ length: MESES_PROYECTADOS }, (_, i) => {
       const mes = addMonthsISO(inicio, i)
-      // Lo que viene de cada tarjeta ese mes: compras imputadas + cuotas que vencen
+      // Lo que viene de cada tarjeta ese mes: compras imputadas + cuotas que
+      // vencen + los gastos fijos que se pagan con esa tarjeta. Los fijos van
+      // adentro del total de la tarjeta a propósito: así se ve de una cuánto
+      // va a venir de Mastercard sin tener que sumar a mano el Netflix y el
+      // resto. Lo que se paga con efectivo o débito sigue como línea aparte.
       const tarjetas = { ...(byMonthCard[mes] ?? {}) }
       for (const inst of installments) {
         if (!installmentDueInMonth(inst, mes)) continue
         const card = methodLabel(inst) ?? 'Tarjeta'
         tarjetas[card] = (tarjetas[card] ?? 0) + Number(inst.amount_per_installment)
       }
-      const detalle = Object.entries(tarjetas).sort((a, b) => b[1] - a[1])
-      // Más los gastos fijos vigentes ese mes, ítem por ítem
+
+      const fijosSueltos = []
       for (const r of recurring) {
-        if (recurringActiveInMonth(r, mes)) detalle.push([r.description, Number(r.amount)])
+        if (!recurringActiveInMonth(r, mes)) continue
+        const tarjeta = r.payment_methods?.kind === 'credit' ? r.payment_methods.name : null
+        if (tarjeta) tarjetas[tarjeta] = (tarjetas[tarjeta] ?? 0) + Number(r.amount)
+        else fijosSueltos.push([r.description, Number(r.amount)])
       }
+
+      const detalle = [
+        ...Object.entries(tarjetas).sort((a, b) => b[1] - a[1]),
+        ...fijosSueltos.sort((a, b) => b[1] - a[1]),
+      ]
       const sale = detalle.reduce((sum, [, v]) => sum + v, 0)
       const entradas = incomesForMonth(ingresos.entries, mes)
       return { mes, entradas, detalle, sale }
@@ -185,8 +197,9 @@ export default function Proyeccion() {
     <SeccionPlegable id="proyeccion" titulo="Los próximos meses" icono={CalendarClock}>
       <p className="mt-1 text-base text-ink-soft">
         Lo que ya se sabe de cada mes: los ingresos con nombre (a qué cuenta
-        entra cada uno) y los pagos que vencen. Tocá el + para cargar un
-        ingreso; cuando llegue el mes, lo marcás como entrado desde el Inicio.
+        entra cada uno) y los pagos que vencen. El total de cada tarjeta ya
+        incluye los gastos fijos que se pagan con ella, así que es lo que
+        esperás que te venga de resumen.
       </p>
 
       <ul className="mt-3 space-y-3">
