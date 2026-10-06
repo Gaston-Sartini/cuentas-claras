@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useCardCharges } from './useCardCharges'
 import { installmentDueInMonth, useInstallments } from './useInstallments'
 import { useInstallmentPayments } from './useInstallmentPayments'
+import { usePaymentMethods } from './usePaymentMethods'
 
 /**
  * El resumen de cada tarjeta que vence: lo que el banco va a debitar, que son
@@ -14,11 +15,20 @@ import { useInstallmentPayments } from './useInstallmentPayments'
  * descuenta las dos: las compras pasan a 'settled' y las cuotas quedan
  * registradas en installment_payments, que es lo que evita cobrarlas dos
  * veces y lo que las saca de acá.
+ *
+ * `dueDay` viene del medio de pago: es el día del mes en que vence ese
+ * resumen, y con eso la pantalla muestra "vence el 12" y el aviso diario
+ * sabe cuándo recordarlo.
+ *
+ * El total que sale de acá tiene su espejo en SQL (la vista
+ * v_card_statements, que usa el aviso del servidor): si cambia la regla de
+ * un lado, hay que cambiarla del otro.
  */
 export function useCardStatements() {
   const { dueCards, dueMonths, dueTotal, settleDue, loading } = useCardCharges()
   const { installments } = useInstallments()
   const { isPaid } = useInstallmentPayments()
+  const { methods } = usePaymentMethods()
 
   const statements = useMemo(() => {
     // Cuotas que vencen en los meses que se están pagando, por tarjeta
@@ -56,10 +66,13 @@ export function useCardStatements() {
             )?.payment_methods?.name
           : null
 
+        const methodId = compras?.methodId ?? (clave.startsWith('legacy:') ? null : clave)
+
         return {
           key: clave,
-          methodId: compras?.methodId ?? (clave.startsWith('legacy:') ? null : clave),
+          methodId,
           name: compras?.name ?? nombreDeCuota ?? 'Tarjeta',
+          dueDay: methods.find((m) => m.id === methodId)?.due_day ?? null,
           months: compras?.months ?? dueMonths,
           gastos: { total: compras?.total ?? 0, items: compras?.items ?? [] },
           cuotas: { ...cuotas, items: [...cuotas.items].sort((a, b) => b.amount - a.amount) },
@@ -67,7 +80,7 @@ export function useCardStatements() {
         }
       })
       .sort((a, b) => b.total - a.total)
-  }, [dueCards, dueMonths, installments, isPaid])
+  }, [dueCards, dueMonths, installments, isPaid, methods])
 
   // Lo que el banco va a debitar en total, contando cuotas
   const totalResumenes = statements.reduce((sum, s) => sum + s.total, 0)

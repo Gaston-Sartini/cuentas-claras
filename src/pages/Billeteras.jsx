@@ -120,8 +120,16 @@ function NuevaBilletera({ onCreate }) {
   )
 }
 
+/* Qué dice debajo del nombre: cómo paga y, si es tarjeta, cuándo vence. */
+const detalleDeMetodo = (m) => {
+  if (m.kind !== 'credit') return `Débito · descuenta de ${m.wallets?.name ?? 'la billetera'}`
+  return m.due_day
+    ? `Crédito · vence el ${m.due_day} de cada mes`
+    : 'Crédito · sin día de vencimiento (no avisa)'
+}
+
 function MediosDePago() {
-  const { methods, removeMethod, renameMethod } = usePaymentMethods()
+  const { methods, removeMethod, updateMethod } = usePaymentMethods()
   const [editando, setEditando] = useState(null) // id en edición
   const [error, setError] = useState('')
 
@@ -138,6 +146,7 @@ function MediosDePago() {
       <ul className="divide-y divide-line rounded-2xl border-2 border-line bg-card px-4">
         {methods.map((m) => {
           const Icon = methodIcon(m)
+          const esTarjeta = m.kind === 'credit'
           return (
             <li key={m.id}>
               <div className="flex items-center gap-3 py-3">
@@ -146,16 +155,14 @@ function MediosDePago() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-lg font-bold">{m.name}</p>
-                  <p className="text-base text-ink-soft">
-                    {m.kind === 'credit'
-                      ? 'Crédito · paga el mes que viene'
-                      : `Débito · descuenta de ${m.wallets?.name ?? 'la billetera'}`}
-                  </p>
+                  <p className="text-base text-ink-soft">{detalleDeMetodo(m)}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setEditando(editando === m.id ? null : m.id)}
-                  aria-label={`Cambiar el nombre de ${m.name}`}
+                  aria-label={
+                    esTarjeta ? `Editar ${m.name} y su vencimiento` : `Cambiar el nombre de ${m.name}`
+                  }
                   className="tap grid shrink-0 place-items-center rounded-xl border-2 border-line px-3 text-ink-soft"
                 >
                   <Pencil size={20} aria-hidden="true" />
@@ -171,8 +178,25 @@ function MediosDePago() {
               </div>
               {editando === m.id && (
                 <EditarInline
-                  campos={[{ key: 'name', label: 'Nombre', tipo: 'texto', valor: m.name }]}
-                  onSave={({ name }) => renameMethod(m.id, name)}
+                  campos={[
+                    { key: 'name', label: 'Nombre', tipo: 'texto', valor: m.name },
+                    // El día de vencimiento es sólo de las tarjetas: un débito
+                    // descuenta al instante, no tiene resumen que venza.
+                    ...(esTarjeta
+                      ? [
+                          {
+                            key: 'dueDay',
+                            label: 'Vence el día (dejalo vacío si no querés aviso)',
+                            tipo: 'entero',
+                            valor: m.due_day,
+                            opcional: true,
+                            min: 1,
+                            max: 31,
+                          },
+                        ]
+                      : []),
+                  ]}
+                  onSave={(valores) => updateMethod(m.id, valores)}
                   onClose={() => setEditando(null)}
                 />
               )}
@@ -181,7 +205,9 @@ function MediosDePago() {
         })}
       </ul>
       <p className="mt-1 text-sm text-ink-soft">
-        Las tarjetas nuevas se agregan al cargar un gasto, tocando "Otro".
+        Ponele a cada tarjeta el día en que vence el resumen: te avisa 5, 3 y 1
+        día antes, y el día que vence. Las tarjetas nuevas se agregan al cargar
+        un gasto, tocando "Otro".
       </p>
       {error && (
         <p role="alert" className="mt-2 rounded-xl border-2 border-alert bg-alert/10 px-4 py-3 text-base font-medium text-alert-deep">

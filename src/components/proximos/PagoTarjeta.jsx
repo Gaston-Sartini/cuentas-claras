@@ -4,6 +4,7 @@ import { useCardStatements } from '../../hooks/useCardStatements'
 import { useWallets } from '../../hooks/useWallets'
 import { formatARS } from '../../lib/format'
 import { formatShortDate, monthLabel } from '../../lib/dates'
+import { etiquetaVencimiento, proximoVencimientoDeDia } from '../../lib/vencimientos'
 
 /* Un grupo del resumen ("Gastos" / "Cuotas"): se toca y muestra sus ítems. */
 function GrupoPlegable({ titulo, total, items, abierto, onAlternar, renderItem }) {
@@ -61,7 +62,16 @@ function TarjetaResumen({
             aria-hidden="true"
             className={`shrink-0 text-ink-soft transition-transform ${abierta ? '' : '-rotate-90'}`}
           />
-          <span className="truncate">{resumen.name}</span>
+          <span className="min-w-0">
+            <span className="block truncate">{resumen.name}</span>
+            {/* Con varias tarjetas, el vencimiento es lo que decide cuál se
+                paga primero: va junto al nombre, no escondido en el detalle. */}
+            {resumen.dueDay && (
+              <span className="block truncate text-sm font-medium text-ink-soft">
+                {etiquetaVencimiento(proximoVencimientoDeDia(resumen.dueDay))}
+              </span>
+            )}
+          </span>
         </span>
         <span className="money shrink-0 text-lg font-bold">{formatARS(resumen.total)}</span>
       </button>

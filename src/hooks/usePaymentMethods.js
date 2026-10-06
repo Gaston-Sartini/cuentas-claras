@@ -75,11 +75,22 @@ export function usePaymentMethods() {
     [refresh]
   )
 
-  const renameMethod = useCallback(
-    async (id, name) => {
-      const clean = name.trim()
-      if (!clean) return { error: { message: 'Poné un nombre.' } }
-      const { error } = await supabase.from('payment_methods').update({ name: clean }).eq('id', id)
+  /**
+   * Editar un medio de pago: el nombre y, en las tarjetas de crédito, el día
+   * del mes en que vence el resumen (due_day), que es lo que dispara el aviso.
+   */
+  const updateMethod = useCallback(
+    async (id, { name, dueDay } = {}) => {
+      const fields = {}
+      if (name !== undefined) {
+        const clean = name.trim()
+        if (!clean) return { error: { message: 'Poné un nombre.' } }
+        fields.name = clean
+      }
+      // null es un valor válido: "esta tarjeta no avisa"
+      if (dueDay !== undefined) fields.due_day = dueDay
+
+      const { error } = await supabase.from('payment_methods').update(fields).eq('id', id)
       if (error) {
         return {
           error: {
@@ -96,5 +107,5 @@ export function usePaymentMethods() {
     [refresh]
   )
 
-  return { methods, loading, createMethod, removeMethod, renameMethod, refresh }
+  return { methods, loading, createMethod, removeMethod, updateMethod, refresh }
 }

@@ -78,3 +78,21 @@ export const suscribirPush = async (profile) => {
     return false
   }
 }
+
+/**
+ * Aviso de prueba: le pide al servidor que mande un push ahora mismo a los
+ * navegadores de la familia. Es la única forma de comprobar desde el teléfono
+ * que la cadena servidor -> navegador funciona, sin esperar a que algo venza
+ * de verdad (puede faltar un mes para el próximo vencimiento).
+ */
+export const probarPush = async () => {
+  const { data, error } = await supabase.functions.invoke('send-reminders', {
+    body: { test: true },
+  })
+  if (error) return { error: 'No se pudo pedir el aviso de prueba. Probá de nuevo.' }
+  if (data?.motivo === 'sin_suscripciones') {
+    return { error: 'Este teléfono todavía no quedó suscripto. Cerrá la app y volvé a abrirla.' }
+  }
+  if (!data?.ok) return { error: 'El servidor no pudo entregar el aviso.' }
+  return { enviados: data.sent }
+}

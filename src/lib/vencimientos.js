@@ -28,6 +28,34 @@ export const proximoVencimientoDeDia = (dueDay, hoy = todayISO()) => {
 }
 
 /**
+ * Resúmenes de tarjeta que vencen dentro de `dias` días. Una tarjeta avisa
+ * sólo si tiene cargado el día de vencimiento y le queda algo por pagar:
+ * marcada como pagada no hay nada que recordar hasta el mes que viene.
+ *
+ * Va aparte de los fijos porque el monto no es un dato cargado a mano sino
+ * el resumen armado (compras + cuotas), y porque el vencimiento de la tarjeta
+ * se muestra distinto en pantalla.
+ */
+export const vencimientosDeTarjetas = ({
+  tarjetas = [],
+  hoy = todayISO(),
+  dias = DIAS_AVISO,
+}) => {
+  const limite = addDaysISO(hoy, dias)
+  return tarjetas
+    .filter((t) => t.dueDay && t.total > 0)
+    .map((t) => ({
+      id: `tarjeta-${t.key}`,
+      titulo: `Tarjeta ${t.name}`,
+      monto: t.total,
+      fecha: proximoVencimientoDeDia(t.dueDay, hoy),
+      vencida: false,
+    }))
+    .filter((t) => t.fecha <= limite)
+    .sort((a, b) => a.fecha.localeCompare(b.fecha))
+}
+
+/**
  * Ítems que vencen dentro de `dias` días (los fijos solo hacia adelante:
  * si el día ya pasó no sabemos si se pagó; las deudas sí muestran vencidas,
  * porque siguen activas hasta que alguien las marca saldadas).
