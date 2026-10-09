@@ -125,3 +125,56 @@ select public.t_assert(
   and public.installment_number('2026-11-01', '2027-01-01') = 3
   and public.installment_number('2026-05-01', '2026-04-01') = 0,
   'installment_number cuenta la cuota que vence en cada mes, y cruza el año');
+
+-- ======= Regresión: un resumen de puras cuotas no se evapora al pagar =======
+-- Pasó en la vida real: se pagaron cuatro tarjetas y la quinta, cuyo resumen
+-- eran dos cuotas y ninguna compra, desapareció sola de lo que falta pagar.
+
+begin;
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', :'u1_id')::text, true);
+
+insert into public.payment_methods (org_id, name, kind, due_day)
+values ((select public.current_org_id()), 'Tarjeta Solo Cuotas', 'credit', 20);
+
+select id as solo_id from public.payment_methods where name = 'Tarjeta Solo Cuotas'
+\gset
+
+insert into public.installments
+  (org_id, description, total_installments, current_installment,
+   amount_per_installment, payment_method_id, start_date)
+values ((select public.current_org_id()), 'Cuota sin compras', 2, 1, 11000, :'solo_id',
+        date_trunc('month', current_date)::date);
+
+-- Se pagan TODAS las compras vencidas de la familia: así no queda ningún mes
+-- con compras pendientes, que es la situación exacta en la que se perdía.
+update public.transactions
+   set status = 'settled'
+ where org_id = (select public.current_org_id())
+   and kind = 'expense'
+   and status = 'next_month'
+   and billing_month <= date_trunc('month', current_date)::date;
+
+select public.t_assert(
+  not exists (select 1 from public.transactions
+               where org_id = (select public.current_org_id())
+                 and kind = 'expense'
+                 and status = 'next_month'
+                 and billing_month <= date_trunc('month', current_date)::date),
+  'el escenario arranca sin ninguna compra vencida sin pagar');
+
+select public.t_assert(
+  (select total from public.v_card_statements where payment_method_id = :'solo_id') = 11000,
+  'una tarjeta que debe sólo cuotas sigue figurando aunque no queden compras sin pagar');
+
+-- Y recién cuando se cobra la cuota deja de figurar
+select public.settle_card_month(
+  date_trunc('month', current_date)::date, null, :'solo_id') as cerrado_solo
+\gset
+
+select public.t_assert(
+  :'cerrado_solo'::numeric = 11000
+  and not exists (select 1 from public.v_card_statements where payment_method_id = :'solo_id'),
+  'cobrada la cuota, la tarjeta de puras cuotas deja de figurar');
+
+rollback;

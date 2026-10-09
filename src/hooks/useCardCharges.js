@@ -41,7 +41,10 @@ export function useCardCharges() {
       cards[m][card] = (cards[m][card] ?? 0) + Number(t.amount)
     }
 
-    // Meses ya vencidos (este mes o antes) con tarjeta sin pagar
+    // Meses ya vencidos (este mes o antes) con COMPRAS de tarjeta sin pagar.
+    // Ojo: no es "todo lo que falta pagar". Un resumen puede deberse entero
+    // sin una sola compra nueva, sólo por las cuotas que vencen ese mes; esos
+    // meses los agrega useCardStatements, que es el que ve las dos patas.
     const vencidos = Object.keys(totals).filter((m) => m <= monthStartISO()).sort()
     const total = vencidos.reduce((sum, m) => sum + totals[m], 0)
 

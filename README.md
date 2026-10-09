@@ -11,7 +11,7 @@
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_v4-06B6D4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 [![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=white)](https://supabase.com)
 [![PWA](https://img.shields.io/badge/PWA-instalable-9E1B1B)](https://cuentas-claras-familia.netlify.app)
-[![Tests](https://img.shields.io/badge/tests_SQL-106_✓-17693A)](supabase/tests)
+[![Tests](https://img.shields.io/badge/tests_SQL-109_✓-17693A)](supabase/tests)
 
 **[✨ Probala en vivo → cuentas-claras-familia.netlify.app](https://cuentas-claras-familia.netlify.app)**
 
@@ -24,7 +24,7 @@ Cuenta demo: `demo-portfolio@cuentasclaras.test` · `demo-portfolio-2026`
 > (whole family shares one realtime workspace), credit-card purchases roll into
 > next month's bill, installment plans and fixed expenses project the months
 > ahead, and every business rule lives in Postgres (triggers + RLS), covered by
-> a 106-assertion SQL test suite that runs against a disposable Docker Postgres.
+> a 109-assertion SQL test suite that runs against a disposable Docker Postgres.
 
 ---
 
@@ -159,9 +159,9 @@ src/
                 historial/ · proximos/ · ingresos/ · banner, nav, ...
 
 supabase/
-├── migrations/ 18 migraciones incrementales (esquema + RLS + triggers + RPCs)
+├── migrations/ 19 migraciones incrementales (esquema + RLS + triggers + RPCs)
 ├── functions/  send-reminders: el push diario de vencimientos (Deno + web-push)
-└── tests/      suite SQL: 106 aserciones sobre Postgres 16 en Docker
+└── tests/      suite SQL: 109 aserciones sobre Postgres 16 en Docker
 ```
 
 ## Tests
@@ -171,7 +171,8 @@ impacto en billeteras (alta/edición/borrado), aislamiento RLS entre familias,
 invitaciones, cierre mensual idempotente, medios de pago custom, gastos fijos
 con vigencia y vencimiento, presupuestos, ingresos por ítem (recurrentes y
 puntuales), deudas y el vencimiento de cada tarjeta con su resumen pendiente
-(incluido que la vista no filtre datos de otra familia).
+(incluido que la vista no filtre datos de otra familia y que una tarjeta cuyo
+resumen son puras cuotas no desaparezca al pagar las demás).
 
 ```bash
 docker run -d --name cc-test -e POSTGRES_PASSWORD=pw \
@@ -179,9 +180,9 @@ docker run -d --name cc-test -e POSTGRES_PASSWORD=pw \
 
 docker exec cc-test psql -U postgres -v ON_ERROR_STOP=1 \
   -f /sql/tests/00_mock_supabase.sql \
-  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00018_card_due_day.sql \
+  -f /sql/migrations/00001_init.sql ... -f /sql/migrations/00019_statements_only_installments.sql \
   -f /sql/tests/01_smoke_test.sql ... -f /sql/tests/14_card_statements_test.sql
-# => 106 aserciones verdes
+# => 109 aserciones verdes
 ```
 
 El mock (`00_mock_supabase.sql`) simula `auth.users`, `auth.uid()` y los roles
