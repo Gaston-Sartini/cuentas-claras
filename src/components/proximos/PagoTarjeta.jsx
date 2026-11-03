@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ChevronDown, CreditCard } from 'lucide-react'
 import { useCardStatements } from '../../hooks/useCardStatements'
 import { useWallets } from '../../hooks/useWallets'
-import { formatARS, formatUSD } from '../../lib/format'
+import { enumerar, formatARS, formatUSD } from '../../lib/format'
 import { useUsdRate } from '../../hooks/useUsdRate'
 import { formatShortDate, monthLabel } from '../../lib/dates'
 import { etiquetaVencimiento, proximoVencimientoDeDia } from '../../lib/vencimientos'
@@ -174,7 +174,7 @@ export default function PagoTarjeta() {
         <CreditCard size={24} aria-hidden="true" className="text-alert-deep" />
         <h2 className="text-lg font-bold text-alert-deep">
           {unaSola ? 'Tarjeta' : 'Tarjetas'} de{' '}
-          {dueMonths.map((m) => monthLabel(m)).join(' y ')}
+          {enumerar(dueMonths.map((m) => monthLabel(m)))}
         </h2>
       </div>
       <p className="money mt-1 font-display text-3xl font-bold text-alert-deep">

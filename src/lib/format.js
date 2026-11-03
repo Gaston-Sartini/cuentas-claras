@@ -19,6 +19,12 @@ export const formatARSExact = (n) =>
 export const formatUSD = (n) =>
   `U$S ${new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n ?? 0)}`
 
+// ["agosto", "octubre", "noviembre"] -> "agosto, octubre y noviembre"
+export const enumerar = (items) =>
+  items.length <= 1
+    ? items[0] ?? ''
+    : `${items.slice(0, -1).join(', ')} y ${items[items.length - 1]}`
+
 // "12.000" o "12000" o "12000,50" -> número. Punto = miles, coma = decimales.
 export const parseARSInput = (str) => {
   if (!str) return 0
