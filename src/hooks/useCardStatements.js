@@ -3,6 +3,7 @@ import { useCardCharges } from './useCardCharges'
 import { useInstallments } from './useInstallments'
 import { useInstallmentPayments } from './useInstallmentPayments'
 import { usePaymentMethods } from './usePaymentMethods'
+import { useUsdRate } from './useUsdRate'
 import { addMonthsISO, monthStartISO } from '../lib/dates'
 
 /**
@@ -20,6 +21,10 @@ import { addMonthsISO, monthStartISO } from '../lib/dates'
  * `dueDay` viene del medio de pago: es el día del mes en que vence ese
  * resumen, y con eso la pantalla muestra "vence el 12" y el aviso diario
  * sabe cuándo recordarlo.
+ *
+ * `total` son pesos y `usd` son dólares, separados como los separa el banco
+ * (el resumen trae dos saldos). `totalConDolares` es el peso final, con los
+ * dólares pasados al cambio de la familia.
  *
  * El total que sale de acá tiene su espejo en SQL (la vista
  * v_card_statements, que usa el aviso del servidor): si cambia la regla de
@@ -46,6 +51,7 @@ export function useCardStatements() {
   const { installments } = useInstallments()
   const { isPaid } = useInstallmentPayments()
   const { methods } = usePaymentMethods()
+  const { rate, enPesos } = useUsdRate()
 
   const { statements, dueMonths } = useMemo(() => {
     const hasta = monthStartISO()
@@ -106,15 +112,27 @@ export function useCardStatements() {
           gastos: { total: compras?.total ?? 0, items: compras?.items ?? [] },
           cuotas: { ...cuotas, items: [...cuotas.items].sort((a, b) => b.amount - a.amount) },
           total: (compras?.total ?? 0) + cuotas.total,
+          usd: compras?.totalUsd ?? 0,
+          totalConDolares:
+            (compras?.total ?? 0) + cuotas.total + (compras?.totalUsd ?? 0) * rate,
         }
       })
-      .sort((a, b) => b.total - a.total)
+      .sort((a, b) => b.totalConDolares - a.totalConDolares)
 
     return { statements: lista, dueMonths: [...meses].sort() }
-  }, [dueCards, mesesConCompras, installments, isPaid, methods])
+  }, [dueCards, mesesConCompras, installments, isPaid, methods, rate])
 
   // Lo que el banco va a debitar en total, contando cuotas
   const totalResumenes = statements.reduce((sum, s) => sum + s.total, 0)
+  const totalUsd = statements.reduce((sum, s) => sum + s.usd, 0)
 
-  return { statements, dueMonths, totalResumenes, settleDue, loading }
+  return {
+    statements,
+    dueMonths,
+    totalResumenes,
+    totalUsd,
+    totalResumenesConDolares: totalResumenes + enPesos(totalUsd),
+    settleDue,
+    loading,
+  }
 }

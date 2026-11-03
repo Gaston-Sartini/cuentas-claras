@@ -10,7 +10,8 @@ import NuevaCategoria from '../components/NuevaCategoria'
 import AvisoTope from '../components/cargar/AvisoTope'
 import { enqueue } from '../lib/offlineQueue'
 import { categoryIcon, methodIcon, WALLET_ICONS } from '../lib/icons'
-import { formatARS, parseARSInput } from '../lib/format'
+import { useUsdRate } from '../hooks/useUsdRate'
+import { formatARS, formatUSD, parseARSInput } from '../lib/format'
 import { addMonthsISO, monthLabel, monthStartISO, todayISO } from '../lib/dates'
 
 function NuevoMedioDePago({ wallets, onCreate, onClose }) {
@@ -135,8 +136,10 @@ export default function Cargar() {
   const { categories, createCategory } = useCategories()
   const { wallets } = useWallets()
   const { methods, createMethod } = usePaymentMethods()
+  const { rate } = useUsdRate()
 
   const [montoStr, setMontoStr] = useState('')
+  const [enDolares, setEnDolares] = useState(false)
   const [descripcion, setDescripcion] = useState('')
   const [categoriaId, setCategoriaId] = useState(null)
   const [metodoId, setMetodoId] = useState(null)
@@ -148,12 +151,17 @@ export default function Cargar() {
   const [error, setError] = useState('')
 
   const monto = parseARSInput(montoStr)
+  // Lo que se guarda en pesos. Un gasto en dólares vale lo que vale en
+  // dólares; el peso es su equivalente al cambio de hoy, y es el número con
+  // el que siguen trabajando billeteras, topes e historial.
+  const montoPesos = enDolares ? Math.round(monto * rate * 100) / 100 : monto
   const metodo = useMemo(
     () => methods.find((m) => m.id === metodoId) ?? null,
     [methods, metodoId]
   )
   const esCredito = metodo?.kind === 'credit'
-  const cuotas = esCredito ? Math.max(1, Number(cuotasStr) || 1) : 1
+  // El banco cobra los consumos en dólares en un pago: no hay cuotas.
+  const cuotas = esCredito && !enDolares ? Math.max(1, Number(cuotasStr) || 1) : 1
 
   // El resumen donde cae una compra con crédito: el mes siguiente al de la
   // compra. Sale de la fecha elegida, no de hoy, para que anotar algo viejo
@@ -169,6 +177,8 @@ export default function Cargar() {
   const guardar = async () => {
     setError('')
     if (!(monto > 0)) return setError('Poné cuánto gastaste.')
+    if (enDolares && !(rate > 0))
+      return setError('Primero poné a cuánto está el dólar, en Billeteras.')
     if (!metodo) return setError('Elegí cómo lo pagaste.')
     if (esCredito && !(cuotas >= 1 && cuotas <= 120))
       return setError('Las cuotas van de 1 a 120.')
@@ -199,7 +209,8 @@ export default function Cargar() {
             created_by: profile.id,
             date: fecha,
             description: desc,
-            amount: monto,
+            amount: montoPesos,
+            amount_usd: enDolares ? monto : null,
             category_id: categoriaId,
             payment_method_id: metodo.id,
           }
@@ -230,23 +241,58 @@ export default function Cargar() {
       </div>
 
       {/* Monto */}
-      <label className="block">
-        <span className="mb-1 block text-base font-bold">¿Cuánto?</span>
-        <div className="flex items-center gap-2 rounded-2xl border-2 border-line bg-card px-4 py-3">
-          <span className="font-display text-3xl font-bold text-ink-soft">$</span>
-          <input
-            className="money w-full bg-transparent font-display text-3xl font-bold outline-none placeholder:text-ink-soft/40"
-            inputMode="numeric"
-            value={montoStr}
-            onChange={(e) => setMontoStr(e.target.value.replace(/[^\d.,]/g, ''))}
-            placeholder="0"
-            aria-label="Monto del gasto en pesos"
-          />
+      <div>
+        <div className="mb-1 flex items-center justify-between gap-2">
+          <span className="text-base font-bold">¿Cuánto?</span>
+          {/* Hay consumos que vienen en dólares (Netflix, Claude, Facebook):
+              se anotan en dólares, que es como los cobra el banco. */}
+          <div className="flex gap-1 rounded-full border-2 border-line bg-card p-1">
+            {[
+              { id: false, label: 'Pesos' },
+              { id: true, label: 'Dólares' },
+            ].map((op) => (
+              <button
+                key={op.label}
+                type="button"
+                onClick={() => setEnDolares(op.id)}
+                aria-pressed={enDolares === op.id}
+                className={`tap rounded-full px-3 py-1 text-sm font-bold ${
+                  enDolares === op.id ? 'bg-ink text-white' : 'text-ink-soft'
+                }`}
+              >
+                {op.label}
+              </button>
+            ))}
+          </div>
         </div>
+        <label className="block">
+          <div className="flex items-center gap-2 rounded-2xl border-2 border-line bg-card px-4 py-3">
+            <span className="font-display text-3xl font-bold text-ink-soft">
+              {enDolares ? 'U$S' : '$'}
+            </span>
+            <input
+              className="money w-full bg-transparent font-display text-3xl font-bold outline-none placeholder:text-ink-soft/40"
+              inputMode="decimal"
+              value={montoStr}
+              onChange={(e) => setMontoStr(e.target.value.replace(/[^\d.,]/g, ''))}
+              placeholder="0"
+              aria-label={enDolares ? 'Monto del gasto en dólares' : 'Monto del gasto en pesos'}
+            />
+          </div>
+        </label>
         {monto > 0 && (
-          <p className="money mt-1 text-base text-ink-soft">{formatARS(monto)}</p>
+          <p className="money mt-1 text-base text-ink-soft">
+            {enDolares
+              ? `${formatUSD(monto)} · a ${formatARS(rate)} son ${formatARS(montoPesos)}`
+              : formatARS(monto)}
+          </p>
         )}
-      </label>
+        {enDolares && !(rate > 0) && (
+          <p className="mt-1 text-base font-medium text-alert-deep">
+            Poné a cuánto está el dólar en Billeteras y volvé.
+          </p>
+        )}
+      </div>
 
       {/* Descripción */}
       <label className="block">
@@ -306,7 +352,7 @@ export default function Cargar() {
         <AvisoTope
           categoriaId={categoriaId}
           categoriaNombre={categories.find((c) => c.id === categoriaId)?.name}
-          monto={monto}
+          monto={montoPesos}
         />
       </div>
 
@@ -354,7 +400,7 @@ export default function Cargar() {
           />
         )}
 
-        {esCredito && (
+        {esCredito && !enDolares && (
           <div className="mt-2">
             <label className="block">
               <span className="mb-1 block text-base font-bold">¿En cuántas cuotas?</span>
@@ -382,6 +428,13 @@ export default function Cargar() {
               )}
             </p>
           </div>
+        )}
+        {esCredito && enDolares && (
+          <p className="mt-2 rounded-xl border-2 border-alert bg-alert/10 px-4 py-3 text-base font-medium text-alert-deep">
+            Va a la cuenta de <strong>{monthLabel(mesDelResumen)}</strong> como
+            consumo en dólares: el banco lo cobra en un pago, aparte del saldo
+            en pesos.
+          </p>
         )}
 
         {billeteraAfectada && (

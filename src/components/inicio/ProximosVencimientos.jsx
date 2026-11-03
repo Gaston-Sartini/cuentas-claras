@@ -103,7 +103,7 @@ export default function ProximosVencimientos() {
   const { profile } = useAuth()
   const { recurring } = useRecurringExpenses()
   const { debts } = useDebts()
-  const { statements, totalResumenes } = useCardStatements()
+  const { statements, totalResumenesConDolares } = useCardStatements()
   const { methods } = usePaymentMethods()
   const [avisos, setAvisos] = useState(() => avisosActivos())
   const [conPush, setConPush] = useState(() => pushActivo())
@@ -189,7 +189,7 @@ export default function ProximosVencimientos() {
                 </span>
               </span>
               <span className="money shrink-0 font-bold text-alert-deep">
-                {formatARS(card.total)}
+                {formatARS(card.totalConDolares)}
               </span>
             </Link>
           </li>
@@ -197,7 +197,7 @@ export default function ProximosVencimientos() {
         {statements.length > 1 && (
           <li className="money flex justify-between gap-3 text-sm text-ink-soft">
             <span>Las {statements.length} tarjetas juntas</span>
-            <span className="font-bold">{formatARS(totalResumenes)}</span>
+            <span className="font-bold">{formatARS(totalResumenesConDolares)}</span>
           </li>
         )}
         {sinCargar.map((m) => (

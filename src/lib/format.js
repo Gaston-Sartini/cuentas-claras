@@ -14,6 +14,11 @@ export const formatARSExact = (n) =>
     minimumFractionDigits: 2,
   }).format(n ?? 0)
 
+// Dólares, siempre con centavos: U$S 69,15. Los montos en dólares son chicos
+// y los centavos son los que hacen cuadrar el resumen.
+export const formatUSD = (n) =>
+  `U$S ${new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n ?? 0)}`
+
 // "12.000" o "12000" o "12000,50" -> número. Punto = miles, coma = decimales.
 export const parseARSInput = (str) => {
   if (!str) return 0

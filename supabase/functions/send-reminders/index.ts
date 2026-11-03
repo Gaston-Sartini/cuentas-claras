@@ -7,6 +7,8 @@
 //    fecha y el resumen de cada tarjeta (payment_methods.due_day). El monto
 //    de la tarjeta sale de la vista v_card_statements, que es el espejo en
 //    SQL de useCardStatements: el aviso dice el mismo número que la pantalla.
+//    Si el resumen trae consumos en dólares, el monto va con los dólares ya
+//    pasados al cambio de la familia, y el aviso aclara cuántos son.
 //  · Espejo en servidor de src/lib/vencimientos.js (misma regla de fechas).
 //  · Claves VAPID y secreto del cron en app_secrets (solo service role).
 //  · Sin tabla de log: corre 1 vez al día y avisa solo cuando faltan
@@ -23,7 +25,14 @@ import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2.4
 import webpush from 'npm:web-push@3.6.7'
 
 type Tipo = 'fijo' | 'deuda' | 'tarjeta'
-type Item = { org_id: string; titulo: string; monto: number; dias: number; tipo: Tipo }
+type Item = {
+  org_id: string
+  titulo: string
+  monto: number
+  dias: number
+  tipo: Tipo
+  usd?: number // consumos en dólares del resumen, si los hay
+}
 
 const TZ = 'America/Argentina/Buenos_Aires'
 
@@ -61,6 +70,9 @@ const fmtARS = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n)
 
+const fmtUSD = (n: number) =>
+  `U$S ${new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)}`
+
 const etiqueta = (dias: number) =>
   dias === 0
     ? 'vence hoy'
@@ -72,7 +84,8 @@ const etiqueta = (dias: number) =>
           ? `venció hace ${-dias} días`
           : `vence en ${dias} días`
 
-const linea = (i: Item) => `${i.titulo}: ${etiqueta(i.dias)} (${fmtARS(i.monto)})`
+const linea = (i: Item) =>
+  `${i.titulo}: ${etiqueta(i.dias)} (${fmtARS(i.monto)}${i.usd ? `, incluye ${fmtUSD(i.usd)}` : ''})`
 
 // El botón "Probar" llama desde el navegador (otro origen), así que la
 // función tiene que contestar el preflight y mandar las cabeceras CORS.
@@ -107,7 +120,7 @@ const recolectar = async (admin: SupabaseClient, hoy: string): Promise<Item[]> =
       .not('due_date', 'is', null),
     admin
       .from('v_card_statements')
-      .select('org_id, name, total, due_day')
+      .select('org_id, name, total_ars, usd, due_day')
       .not('due_day', 'is', null),
   ])
 
@@ -142,7 +155,10 @@ const recolectar = async (admin: SupabaseClient, hoy: string): Promise<Item[]> =
     items.push({
       org_id: t.org_id,
       titulo: `Tarjeta ${t.name}`,
-      monto: Number(t.total),
+      // Lo que va a salir en pesos, con los consumos en dólares ya pasados
+      // al cambio de la familia: es el número con el que hay que juntar plata.
+      monto: Number(t.total_ars),
+      usd: Number(t.usd) || undefined,
       dias: dayDiff(hoy, proximoVencimiento(t.due_day, hoy)),
       tipo: 'tarjeta',
     })

@@ -43,11 +43,12 @@ export const vencimientosDeTarjetas = ({
 }) => {
   const limite = addDaysISO(hoy, dias)
   return tarjetas
-    .filter((t) => t.dueDay && t.total > 0)
+    .filter((t) => t.dueDay && (t.totalConDolares ?? t.total) > 0)
     .map((t) => ({
       id: `tarjeta-${t.key}`,
       titulo: `Tarjeta ${t.name}`,
-      monto: t.total,
+      // Lo que va a salir de verdad en pesos, dólares del resumen incluidos
+      monto: t.totalConDolares ?? t.total,
       fecha: proximoVencimientoDeDia(t.dueDay, hoy),
       vencida: false,
     }))

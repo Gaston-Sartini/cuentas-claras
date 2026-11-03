@@ -29,11 +29,14 @@ export function useRecurringExpenses() {
   useSupabaseLive('recurring_expenses', refresh, !!session)
 
   const addRecurring = useCallback(
-    async ({ description, amount, categoryId = null, methodId = null, dueDay = null }) => {
+    async ({
+      description, amount, amountUsd = null, categoryId = null, methodId = null, dueDay = null,
+    }) => {
       const { error } = await supabase.from('recurring_expenses').insert({
         org_id: profile?.org_id,
         description: description.trim(),
         amount,
+        amount_usd: amountUsd,
         category_id: categoryId,
         payment_method_id: methodId,
         start_month: monthStartISO(),

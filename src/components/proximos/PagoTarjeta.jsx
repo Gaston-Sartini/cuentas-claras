@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { ChevronDown, CreditCard } from 'lucide-react'
 import { useCardStatements } from '../../hooks/useCardStatements'
 import { useWallets } from '../../hooks/useWallets'
-import { formatARS } from '../../lib/format'
+import { formatARS, formatUSD } from '../../lib/format'
+import { useUsdRate } from '../../hooks/useUsdRate'
 import { formatShortDate, monthLabel } from '../../lib/dates'
 import { etiquetaVencimiento, proximoVencimientoDeDia } from '../../lib/vencimientos'
 
@@ -35,7 +36,9 @@ function GrupoPlegable({ titulo, total, items, abierto, onAlternar, renderItem }
           {items.map((it) => (
             <li key={it.id} className="flex items-baseline justify-between gap-2 text-base">
               <span className="min-w-0 truncate text-ink-soft">{renderItem(it)}</span>
-              <span className="money shrink-0 font-medium">{formatARS(it.amount)}</span>
+              <span className="money shrink-0 font-medium">
+                {it.amountUsd != null ? formatUSD(it.amountUsd) : formatARS(it.amount)}
+              </span>
             </li>
           ))}
         </ul>
@@ -46,7 +49,7 @@ function GrupoPlegable({ titulo, total, items, abierto, onAlternar, renderItem }
 
 /* Una tarjeta: total arriba; abierta muestra Gastos y Cuotas, cada uno plegable. */
 function TarjetaResumen({
-  resumen, abierta, grupo, onAlternar, onAlternarGrupo, onPagar, pagando,
+  resumen, rate, abierta, grupo, onAlternar, onAlternarGrupo, onPagar, pagando,
 }) {
   return (
     <li className="rounded-xl border-2 border-alert/40 bg-card p-3">
@@ -73,8 +76,18 @@ function TarjetaResumen({
             )}
           </span>
         </span>
-        <span className="money shrink-0 text-lg font-bold">{formatARS(resumen.total)}</span>
+        <span className="money shrink-0 text-lg font-bold">
+          {formatARS(resumen.totalConDolares)}
+        </span>
       </button>
+
+      {/* El banco cobra dos saldos: hay que ver cuánto es de cada uno */}
+      {resumen.usd > 0 && (
+        <p className="money mt-1 pl-7 text-sm text-ink-soft">
+          {formatARS(resumen.total)} + {formatUSD(resumen.usd)} (a {formatARS(rate)} ={' '}
+          {formatARS(resumen.usd * rate)})
+        </p>
+      )}
 
       {abierta && (
         <div className="mt-1 pl-5">
@@ -124,7 +137,9 @@ function TarjetaResumen({
  * cuotas del mes quedan registradas, que es lo que impide cobrarlas de nuevo.
  */
 export default function PagoTarjeta() {
-  const { statements, dueMonths, totalResumenes, settleDue } = useCardStatements()
+  const { statements, dueMonths, totalResumenes, totalUsd, totalResumenesConDolares, settleDue } =
+    useCardStatements()
+  const { rate } = useUsdRate()
   const { wallets } = useWallets()
   const banco = wallets.find((w) => w.type === 'bank')
   const [descontarBanco, setDescontarBanco] = useState(true)
@@ -163,8 +178,13 @@ export default function PagoTarjeta() {
         </h2>
       </div>
       <p className="money mt-1 font-display text-3xl font-bold text-alert-deep">
-        {formatARS(totalResumenes)}
+        {formatARS(totalResumenesConDolares)}
       </p>
+      {totalUsd > 0 && (
+        <p className="money text-base font-bold text-alert-deep/80">
+          {formatARS(totalResumenes)} en pesos + {formatUSD(totalUsd)} a {formatARS(rate)}
+        </p>
+      )}
       <p className="mt-1 text-base text-ink-soft">
         Es lo que te va a debitar el banco, contando cuotas. Tocá una tarjeta para
         ver el detalle, y marcala cuando la pagues.
@@ -175,6 +195,7 @@ export default function PagoTarjeta() {
           <TarjetaResumen
             key={resumen.key}
             resumen={resumen}
+            rate={rate}
             abierta={abierta === resumen.key}
             grupo={abierta === resumen.key ? grupo : null}
             onAlternar={() => alternarTarjeta(resumen.key)}
@@ -212,7 +233,7 @@ export default function PagoTarjeta() {
         >
           {pagando === 'todas'
             ? 'Registrando…'
-            : `Ya las pagué todas (${formatARS(totalResumenes)})`}
+            : `Ya las pagué todas (${formatARS(totalResumenesConDolares)})`}
         </button>
       )}
     </div>

@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Pencil, Plus, Target, Trash2 } from 'lucide-react'
+import { DollarSign, Pencil, Plus, Target, Trash2 } from 'lucide-react'
 import { useWallets } from '../hooks/useWallets'
 import { useCategories } from '../hooks/useCategories'
 import { useCategoryBudgets } from '../hooks/useCategoryBudgets'
 import { usePaymentMethods } from '../hooks/usePaymentMethods'
+import { useUsdRate } from '../hooks/useUsdRate'
 import NuevaCategoria from '../components/NuevaCategoria'
 import TransferirPlata from '../components/billeteras/TransferirPlata'
 import EditarInline from '../components/EditarInline'
@@ -391,6 +392,94 @@ function TarjetaBilletera({ wallet, onSetBalance, onRename }) {
   )
 }
 
+/**
+ * A cuánto toma la familia el dólar. Al guardarlo se recotiza todo lo que
+ * viene en dólares y todavía no se pagó, así lo que falta pagar de la tarjeta
+ * queda al cambio de hoy. Lo ya pagado no se toca: es lo que de verdad salió.
+ */
+function Dolar() {
+  const { rate, setRate } = useUsdRate()
+  const [editando, setEditando] = useState(false)
+  const [valorStr, setValorStr] = useState('')
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState('')
+
+  const guardar = async () => {
+    setGuardando(true)
+    setError('')
+    const { error } = await setRate(parseARSInput(valorStr))
+    setGuardando(false)
+    if (error) return setError(error.message)
+    setEditando(false)
+    setValorStr('')
+  }
+
+  return (
+    <div>
+      <h2 className="mb-2 flex items-center gap-2 text-lg font-bold">
+        <DollarSign size={22} aria-hidden="true" />
+        El dólar
+      </h2>
+      <div className="rounded-2xl border-2 border-line bg-card p-4">
+        <p className="money font-display text-3xl font-bold">{formatARS(rate)}</p>
+        <p className="mt-1 text-base text-ink-soft">
+          Con esto se pasan a pesos los gastos que vienen en dólares (Netflix,
+          Claude, Facebook…). Cambiarlo recotiza lo que todavía no pagaste.
+        </p>
+
+        {editando ? (
+          <div className="mt-3 space-y-2">
+            <label className="block">
+              <span className="mb-1 block text-base font-bold">¿A cuánto está?</span>
+              <div className="flex items-center gap-1 rounded-xl border-2 border-line px-3">
+                <span className="text-lg font-bold text-ink-soft">$</span>
+                <input
+                  className="money tap w-full bg-transparent py-2 text-lg outline-none"
+                  inputMode="numeric"
+                  value={valorStr}
+                  onChange={(e) => setValorStr(e.target.value.replace(/[^\d.,]/g, ''))}
+                  placeholder={String(Math.round(rate))}
+                  autoFocus
+                />
+              </div>
+            </label>
+            {error && (
+              <p role="alert" className="rounded-xl border-2 border-alert bg-alert/10 px-4 py-3 text-base font-medium text-alert-deep">
+                {error}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={guardar}
+                disabled={guardando}
+                className="tap flex-1 rounded-xl bg-ink px-4 py-2 text-lg font-bold text-white disabled:opacity-60"
+              >
+                {guardando ? 'Guardando…' : 'Guardar'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setEditando(false); setValorStr('') }}
+                className="tap flex-1 rounded-xl border-2 border-line px-4 py-2 text-lg font-bold text-ink-soft"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditando(true)}
+            className="tap mt-3 w-full rounded-xl border-2 border-line px-3 py-2 text-base font-bold text-ink-soft"
+          >
+            Cambiar el dólar
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function Presupuestos() {
   const { categories } = useCategories()
   const { budgets, setBudget, removeBudget } = useCategoryBudgets()
@@ -529,6 +618,8 @@ export default function Billeteras() {
       <TransferirPlata wallets={wallets} onTransfer={transfer} />
 
       <MediosDePago />
+
+      <Dolar />
 
       <Presupuestos />
 

@@ -21,7 +21,7 @@ export function useCardCharges() {
   const refresh = useCallback(async () => {
     const { data } = await supabase
       .from('transactions')
-      .select('id, date, description, billing_month, amount, payment_method, payment_method_id, payment_methods(name)')
+      .select('id, date, description, billing_month, amount, amount_usd, payment_method, payment_method_id, payment_methods(name)')
       .eq('kind', 'expense')
       .eq('status', 'next_month')
     setRows(data ?? [])
@@ -61,15 +61,21 @@ export function useCardCharges() {
         methodId: t.payment_method_id ?? null,
         name: t.payment_methods?.name ?? METHOD_META[t.payment_method]?.label ?? 'Tarjeta',
         total: 0,
+        totalUsd: 0,
         items: [],
         months: new Set(),
       }
-      actual.total += Number(t.amount)
+      // Pesos y dólares no se mezclan: el banco los cobra como dos saldos
+      // distintos y el resumen los muestra en dos columnas.
+      const enDolares = t.amount_usd != null
+      if (enDolares) actual.totalUsd += Number(t.amount_usd)
+      else actual.total += Number(t.amount)
       actual.items.push({
         id: t.id,
         date: t.date,
         description: t.description,
         amount: Number(t.amount),
+        amountUsd: enDolares ? Number(t.amount_usd) : null,
       })
       actual.months.add(t.billing_month)
       porTarjeta.set(clave, actual)
