@@ -309,7 +309,9 @@ Deno.serve(async (req) => {
       hoy,
       familias: grupos.size,
       suscripciones: subs?.length ?? 0,
-      avisos: [...grupos.values()].flat().map((i) => `${i.titulo} · ${etiqueta(i.dias)}`),
+      // El texto tal cual sale al teléfono: un dry_run que muestra otra cosa
+      // no sirve para comprobar nada.
+      avisos: [...grupos.values()].flat().map(linea),
     })
   }
 
