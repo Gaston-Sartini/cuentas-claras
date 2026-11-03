@@ -11,9 +11,7 @@ import { recurringActiveInMonth, useRecurringExpenses } from '../../hooks/useRec
 import { formatARS, parseARSInput } from '../../lib/format'
 import { monthStartISO } from '../../lib/dates'
 
-function FormFijo({ onAdd, onClose }) {
-  const { categories } = useCategories()
-  const { methods } = usePaymentMethods()
+function FormFijo({ categories, methods, onAdd, onClose }) {
   const [descripcion, setDescripcion] = useState('')
   const [montoStr, setMontoStr] = useState('')
   const [categoriaId, setCategoriaId] = useState('')
@@ -102,6 +100,12 @@ function FormFijo({ onAdd, onClose }) {
   )
 }
 
+/* Opciones de un select, con su primera opción vacía ("sin elegir"). */
+const opciones = (lista, vacia) => [
+  { value: '', label: vacia },
+  ...lista.map((x) => ({ value: x.id, label: x.name })),
+]
+
 /**
  * Radar de suscripciones: el costo anualizado de los fijos vigentes. Ver
  * "$49.000/mes" como "$588.000 al año" es lo que empuja a dar de baja lo
@@ -136,6 +140,8 @@ function RadarSuscripciones({ recurring }) {
 export default function GastosFijos() {
   const { recurring, loading, addRecurring, updateRecurring, removeRecurring } =
     useRecurringExpenses()
+  const { categories } = useCategories()
+  const { methods } = usePaymentMethods()
   const [agregando, setAgregando] = useState(false)
   const [editando, setEditando] = useState(null) // id en edición
 
@@ -163,7 +169,14 @@ export default function GastosFijos() {
         )
       }
     >
-      {agregando && <FormFijo onAdd={addRecurring} onClose={() => setAgregando(false)} />}
+      {agregando && (
+        <FormFijo
+          categories={categories}
+          methods={methods}
+          onAdd={addRecurring}
+          onClose={() => setAgregando(false)}
+        />
+      )}
 
       {loading ? (
         <p className="mt-3 text-base text-ink-soft">Cargando…</p>
@@ -208,6 +221,23 @@ export default function GastosFijos() {
                   campos={[
                     { key: 'description', label: '¿Qué es?', tipo: 'texto', valor: r.description },
                     { key: 'amount', label: '$ por mes', tipo: 'monto', valor: Math.round(Number(r.amount)) },
+                    // Con qué se paga define en qué tarjeta cae el gasto fijo
+                    // dentro de la proyección, así que tiene que ser editable:
+                    // un débito automático cambia de tarjeta como cualquier cosa.
+                    {
+                      key: 'payment_method_id',
+                      label: '¿Con qué se paga?',
+                      tipo: 'select',
+                      valor: r.payment_method_id ?? '',
+                      opciones: opciones(methods, 'No sé aún'),
+                    },
+                    {
+                      key: 'category_id',
+                      label: 'Categoría',
+                      tipo: 'select',
+                      valor: r.category_id ?? '',
+                      opciones: opciones(categories, 'Sin categoría'),
+                    },
                     { key: 'due_day', label: 'Día de vencimiento (1 a 31, vacío = sin aviso)', tipo: 'entero', opcional: true, min: 1, max: 31, valor: r.due_day },
                   ]}
                   onSave={(valores) => updateRecurring(r.id, valores)}

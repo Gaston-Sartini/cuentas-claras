@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useRecurringExpenses } from '../../hooks/useRecurringExpenses'
 import { useDebts } from '../../hooks/useDebts'
 import { useCardStatements } from '../../hooks/useCardStatements'
+import { usePaymentMethods } from '../../hooks/usePaymentMethods'
 import {
   etiquetaVencimiento,
   proximoVencimientoDeDia,
@@ -103,6 +104,7 @@ export default function ProximosVencimientos() {
   const { recurring } = useRecurringExpenses()
   const { debts } = useDebts()
   const { statements, totalResumenes } = useCardStatements()
+  const { methods } = usePaymentMethods()
   const [avisos, setAvisos] = useState(() => avisosActivos())
   const [conPush, setConPush] = useState(() => pushActivo())
 
@@ -131,12 +133,33 @@ export default function ProximosVencimientos() {
     [statements]
   )
 
+  // Una tarjeta con vencimiento cargado pero sin gastos anotados no entra en
+  // `statements` (no hay nada que pagar) y antes desaparecía sin explicación.
+  // Aparece igual, en gris: lo que falta no es el vencimiento, son los gastos.
+  const sinCargar = useMemo(
+    () =>
+      methods
+        .filter(
+          (m) =>
+            m.kind === 'credit' &&
+            m.due_day &&
+            !statements.some((s) => s.methodId === m.id)
+        )
+        .sort(
+          (a, b) =>
+            proximoVencimientoDeDia(a.due_day).localeCompare(
+              proximoVencimientoDeDia(b.due_day)
+            ) || a.name.localeCompare(b.name)
+        ),
+    [methods, statements]
+  )
+
   // Al abrir la app: notificar lo que vence ya (el dedupe evita repetir)
   useEffect(() => {
     notificarVencimientos([...itemsTarjeta, ...items])
   }, [itemsTarjeta, items])
 
-  if (items.length === 0 && statements.length === 0) return null
+  if (items.length === 0 && statements.length === 0 && sinCargar.length === 0) return null
 
   return (
     <div className="rounded-2xl border-2 border-line bg-card p-4">
@@ -177,6 +200,21 @@ export default function ProximosVencimientos() {
             <span className="font-bold">{formatARS(totalResumenes)}</span>
           </li>
         )}
+        {sinCargar.map((m) => (
+          <li key={m.id}>
+            <Link to="/cargar" className="flex items-center justify-between gap-3">
+              <span className="flex min-w-0 items-center gap-2 text-ink-soft">
+                <CreditCard size={18} aria-hidden="true" className="shrink-0" />
+                <span className="min-w-0 truncate">
+                  {m.name} · {etiquetaVencimiento(proximoVencimientoDeDia(m.due_day))}
+                </span>
+              </span>
+              <span className="shrink-0 text-sm font-medium text-ink-soft">
+                sin gastos cargados
+              </span>
+            </Link>
+          </li>
+        ))}
         {items.map((it) => (
           <li key={it.id} className="flex items-baseline justify-between gap-3">
             <span
